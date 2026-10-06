@@ -345,8 +345,11 @@ let barH="";
 function fitBars(){ const t=$("top").offsetHeight, b=$("bot").offsetHeight, k=t+"/"+b; if(k===barH) return; barH=k;
   $("map").style.top=t+"px"; $("map").style.bottom=b+"px"; map.invalidateSize(); if(last&&follow) map.panTo([last.lat,last.lon],{animate:false}); }
 function fitRoute(){ map.invalidateSize(); if(ROUTE.length) map.fitBounds(L.latLngBounds(ROUTE),{padding:[30,30],maxZoom:15}); }
-fitRoute(); setTimeout(()=>{ if(!last) fitRoute(); },400);
-window.addEventListener("resize",()=>{ map.invalidateSize(); if(!last) fitRoute(); });
+// close in on the boat: 17 at slow speeds, 16 when running (about 2 minutes of water ahead either way)
+function navZoom(){ return (sogS||0)>8 ? 16 : 17; }
+if(!S.started){ fitRoute(); setTimeout(()=>{ if(!last) fitRoute(); },400); }
+else if(S.track.length){ const lt=S.track[S.track.length-1]; map.setView([lt[1],lt[2]],17); }
+window.addEventListener("resize",()=>{ map.invalidateSize(); if(!last && !S.started) fitRoute(); });
 function trackPieces(){ const out=[]; let cur=[];
   for(let i=0;i<S.track.length;i++){ const p=S.track[i], q=S.track[i-1];
     if(q && (p[0]-q[0]>60000 || hav([q[1],q[2]],[p[1],p[2]])>400)){ if(cur.length) out.push(cur); cur=[]; }
@@ -362,7 +365,7 @@ drawStamps();
 const meIcon = L.divIcon({className:"me",iconSize:[26,26],html:'<svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="11" fill="#2563eb" stroke="#fff" stroke-width="3"/><path d="M13 3 L18 15 L13 12 L8 15 Z" fill="#fff"/></svg>'});
 let me=null, accCircle=null, follow=true, last=null, sogS=null, cogS=null, watchId=null, wake=null, progressIdx=0;
 map.on("dragstart",()=>{follow=false;});
-$("centre").onclick=()=>{follow=true; if(last) map.setView([last.lat,last.lon],Math.max(map.getZoom(),15)); else fitRoute();};
+$("centre").onclick=()=>{follow=true; if(last) map.setView([last.lat,last.lon],navZoom()); else fitRoute();};
 
 function onPos(p){
   const c=p.coords, t=p.timestamp||Date.now(), pt=[c.latitude,c.longitude];
@@ -374,7 +377,7 @@ function onPos(p){
   if(cog!=null && (sogS||0)>1.5) cogS=cog;
   last={t,lat:pt[0],lon:pt[1],acc:c.accuracy};
   if(!me){me=L.marker(pt,{icon:meIcon,zIndexOffset:1000}).addTo(map);accCircle=L.circle(pt,{radius:c.accuracy,weight:1,fillOpacity:.08}).addTo(map);
-    map.setView(pt,Math.max(map.getZoom(),16));}
+    map.setView(pt,navZoom());}
   me.setLatLng(pt);accCircle.setLatLng(pt).setRadius(c.accuracy);
   const svg=me.getElement()&&me.getElement().querySelector("svg"); if(svg) svg.style.transform="rotate("+(cogS||0)+"deg)";
   if(follow) map.panTo(pt,{animate:true});
