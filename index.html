@@ -398,7 +398,7 @@ function render(){
     if(nd){ const after=DIRS[nd.n+1];
       tb.style.display="block"; tb.className=(nd.e.z?"zone":"")+(pr.off>150?" off":"");
       $("turnD").textContent="In "+dist(nd.d);
-      const tp=ROUTE[nd.e.i]; turnMark.setLatLng(tp).addTo(map); toTurn.setLatLngs([[last.lat,last.lon],tp]).addTo(map);
+      const tp=ROUTE[nd.e.i]; turnMark.setLatLng(tp).addTo(map); 
       aheadLine.setLatLngs(ROUTE.slice(pr.i, nd.e.i+1)).addTo(map);
       $("turnT").textContent=nd.e.t;
       $("turnS").textContent=(pr.off>150?("Off the planned line by "+dist(pr.off)+". "):"")+(nd.e.s?nd.e.s+". ":"")+(after&&after.leg===nd.e.leg?("Then: "+after.t):"");
