@@ -601,6 +601,9 @@ function fitRoute(){ map.invalidateSize(); if(ROUTE.length) map.fitBounds(L.latL
 // close in on the boat: 17 at slow speeds, 16 when running (about 2 minutes of water ahead either way)
 function navZoom(){ return (sogS||0)>8 ? 16 : 17; }
 window.addEventListener("resize",()=>{ map.invalidateSize(); if(!last && !S.started) fitRoute(); });
+// a page opened while hidden (a background tab) starts with a 0 x 0 map; when it gets its real size, size the map and refit
+if(window.ResizeObserver){ let was0 = map.getSize().x===0; new ResizeObserver(()=>{ const z=map.getContainer().clientWidth===0;
+  if(was0 && !z){ map.invalidateSize(); if(!last) fitRoute(); } was0=z; }).observe(map.getContainer()); }
 function trackPieces(){ const out=[]; let cur=[];
   for(let i=0;i<S.track.length;i++){ const p=S.track[i], q=S.track[i-1];
     if(q && (p[0]-q[0]>60000 || hav([q[1],q[2]],[p[1],p[2]])>400)){ if(cur.length) out.push(cur); cur=[]; }
