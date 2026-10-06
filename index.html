@@ -40,7 +40,7 @@ button:active{filter:brightness(1.3)}
 #topc{left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top));display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none}
 .br{display:none;width:150px;border-radius:12px;padding:6px 6px 7px;text-align:center;background:rgba(8,20,32,.6);font-weight:700;line-height:1.15}
 .br.show{display:block}
-.br .n{font-size:10px;letter-spacing:.05em;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:clip}.br .h{font-size:19px;font-weight:900;white-space:nowrap}
+.br .n{font-size:10px;letter-spacing:.05em;opacity:.85;white-space:normal;line-height:1.2}.br .h{font-size:19px;font-weight:900;white-space:nowrap}
 .br .y{font-size:11px;opacity:.85}.br .s{font-size:13px;font-weight:900;margin-top:2px}.br .s span{display:block;font-weight:700;font-size:11px}
 .br.ok .s{color:#86efac}.br.tight,.br.unk{background:rgba(120,70,0,.78)}.br.tight .s,.br.unk .s{color:#fde68a}.br.no{background:rgba(150,20,30,.88)}.br.no .s{color:#fff}
 #zone{display:none;border-radius:10px;padding:4px 10px;font-size:14px;font-weight:900;background:var(--warn);white-space:nowrap}
@@ -484,8 +484,14 @@ const BRX = [];
 function showBridge(pr, bc, td){
   const el=$("bridge"); let g=null;
   if(pr && pr.off<250 && BRX.length){ const li=legOf(pr.i); g=BRX.find(x=>x.leg===li && x.cum>bc-5 && x.cum-bc<=1000); }
+  // off the planned line (for example the inside way past Ephraim Island): any listed bridge within 700 m that the
+  // boat is heading for, within 30 degrees of its course
+  if(!g && last && cogS!=null && (sogS||0)>2){ let bd=701;
+    for(const x of CX.bx||[]){ const p=[x[1],x[2]], dd=hav([last.lat,last.lon],p); if(dd>bd) continue;
+      const off=Math.abs(((bearing([last.lat,last.lon],p)-cogS+540)%360)-180); if(off>30) continue;
+      bd=dd; g={name:x[0]||"Bridge", clr:x[3], dat:x[4], away:true, d:dd}; } }
   if(!g){ el.className="br"; window.BRIDGE=null; return; }
-  const d=Math.max(0,g.cum-bc), hgt=num(BOAT.h);
+  const d=g.away ? g.d : Math.max(0,g.cum-bc), hgt=num(BOAT.h);
   let cls, head, sub="", word="", info={name:g.name, d:Math.round(d)};
   if(g.clr==null){ cls="unk"; head="clearance not on the chart"; word="CHECK THE SIGN"; }
   else if(!td){ cls="unk"; head=g.clr.toFixed(1)+" m at "+g.dat; word="NO TIDE DATA"; }
@@ -731,7 +737,7 @@ function render(){
     dEl.textContent = d<=0 ? "dries" : d.toFixed(1)+" m+"; $("depthCap").textContent="DEPTH NOW";
     if(dr!=null) dc.className = d<dr ? "red" : d<dr+MARGIN ? "amber" : ""; else if(d<=0) dc.className="red"; }
   // tide
-  if(td){ $("tideH").textContent=td.h.toFixed(1)+" m"; $("tideCap").textContent="TIDE, "+(td.rising?"RISING":"FALLING")+(td.place==="Paradise Point"?", PARADISE PT":"");
+  if(td){ $("tideH").textContent=td.h.toFixed(1)+" m"; $("tideCap").textContent="TIDE, "+(td.rising?"RISING":"FALLING");   // which tide place is used is shown under More
     $("tideInfo").textContent="Tide at "+td.place+": "+td.h.toFixed(2)+" m above chart datum, "+(td.rising?"rising":"falling")+"; "+(td.rising?"high":"low")+" "+hhmm(td.next[0]*1000)+" "+td.next[1].toFixed(2)+" m."; }
   else { $("tideH").textContent="-"; $("tideCap").textContent="TIDE, NO DATA"; }
   // zone
