@@ -161,11 +161,13 @@ let S = load(); // {job, track:[[t,lat,lon,sogKn,acc]], stamps:[{t,l,lat,lon,s}]
 // short link: ?job=<name> loads jobs/<name>.json from this site, then carries on as a #j= link
 (function shortLink(){
   const q=new URLSearchParams(location.search).get("job");
-  if(!q || /[#&]j=/.test(location.hash)) return;
-  fetch("jobs/"+encodeURIComponent(q)+".json",{cache:"no-store"}).then(r=>{ if(!r.ok) throw new Error("job '"+q+"' not found"); return r.text(); })
+  let have=false; try{ have=!!(JSON.parse(localStorage.getItem(STORE))||{}).job; }catch(e){}
+  if(/[#&]j=/.test(location.hash)) return;
+  if(!q && have) return;
+  fetch("jobs/"+encodeURIComponent(q||"latest")+".json",{cache:"no-store"}).then(r=>{ if(!r.ok) throw new Error("job '"+q+"' not found"); return r.text(); })
     .then(t=>{ const u=new TextEncoder().encode(t); let bin=""; for(const c of u) bin+=String.fromCharCode(c);
       location.replace(location.pathname+"#j="+btoa(bin).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")); })
-    .catch(e=>alert("That job link could not be loaded: "+e.message));
+    .catch(e=>{ if(q) alert("That job link could not be loaded: "+e.message); });
 })();
 (function readHash(){
   const m = location.hash.match(/[#&]j=([^&]+)/);
@@ -173,7 +175,8 @@ let S = load(); // {job, track:[[t,lat,lon,sogKn,acc]], stamps:[{t,l,lat,lon,s}]
   try{
     const job = JSON.parse(b64urlDecode(m[1]));
     const id = job.id || (job.n+"|"+job.d);
-    if(!S.job || (S.job.id||S.job.n+"|"+S.job.d)!==id){
+    if(!S.job){ S.job=job; }
+    else if((S.job.id||S.job.n+"|"+S.job.d)!==id){
       if(S.track && S.track.length && !confirm("Load the job \""+job.n+"\"? This clears the track and stamps of \""+(S.job?S.job.n:"the last job")+"\" from this phone.")) return;
       S = {job, track:[], stamps:[]};
     } else S.job = job;
@@ -344,7 +347,12 @@ function fitBars(){ const t=$("top").offsetHeight, b=$("bot").offsetHeight, k=t+
 function fitRoute(){ map.invalidateSize(); if(ROUTE.length) map.fitBounds(L.latLngBounds(ROUTE),{padding:[30,30],maxZoom:15}); }
 fitRoute(); setTimeout(()=>{ if(!last) fitRoute(); },400);
 window.addEventListener("resize",()=>{ map.invalidateSize(); if(!last) fitRoute(); });
-const trackLine = L.polyline(S.track.map(p=>[p[1],p[2]]),{color:"#facc15",weight:3}).addTo(map);
+function trackPieces(){ const out=[]; let cur=[];
+  for(let i=0;i<S.track.length;i++){ const p=S.track[i], q=S.track[i-1];
+    if(q && (p[0]-q[0]>60000 || hav([q[1],q[2]],[p[1],p[2]])>400)){ if(cur.length) out.push(cur); cur=[]; }
+    cur.push([p[1],p[2]]); }
+  if(cur.length) out.push(cur); return out; }
+const trackLine = L.polyline(trackPieces(),{color:"#facc15",weight:3}).addTo(map);
 const stampLayer = L.layerGroup().addTo(map);
 function drawStamps(){stampLayer.clearLayers();for(const s of S.stamps) if(s.lat!=null)
   L.marker([s.lat,s.lon],{icon:L.divIcon({className:"stampicon",iconSize:[12,12]})}).bindTooltip(hhmm(s.t)+" "+s.l).addTo(stampLayer);}
@@ -374,7 +382,7 @@ function onPos(p){
   const lt=S.track[S.track.length-1];
   if(S.started && c.accuracy<60 && (!lt || t-lt[0]>=5000 || hav([lt[1],lt[2]],pt)>=15)){
     S.track.push([t,+pt[0].toFixed(6),+pt[1].toFixed(6),sogS==null?null:+sogS.toFixed(1),Math.round(c.accuracy)]);
-    trackLine.addLatLng(pt); if(S.track.length%6===0) save();
+    trackLine.setLatLngs(trackPieces()); if(S.track.length%6===0) save();
   }
   $("gpsst").textContent="GPS "+Math.round(c.accuracy)+" m";
   render();
