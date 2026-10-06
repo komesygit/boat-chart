@@ -195,11 +195,14 @@ const BOAT_LEN = (JOB && JOB.L) || 7.5;
 const map = L.map("map",{zoomControl:false,attributionControl:true,preferCanvas:true}).setView([-27.95,153.40],12);
 const esri = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
   {maxZoom:19,maxNativeZoom:18,attribution:"Esri World Imagery"});
+// shade depths for a small boat: 2 m safety contour (default is 30 m, which paints the whole Broadwater one blue)
+const AHO_DP = encodeURIComponent(JSON.stringify({ECDISParameters:{version:"11.5",DynamicParameters:{Parameter:[
+  {name:"SafetyContour",value:2},{name:"SafetyDepth",value:2},{name:"ShallowContour",value:1},{name:"DeepContour",value:5},{name:"TwoDepthShades",value:2}]}}}));
 const AHO = "https://services.hydro.gov.au/site1/rest/services/MCS/AHOENCOnline/MapServer/exts/MaritimeChartService/MapServer/export";
 const AhoLayer = L.TileLayer.extend({getTileUrl(c){
   const s=256,nw=this._map.unproject([c.x*s,c.y*s],c.z),se=this._map.unproject([(c.x+1)*s,(c.y+1)*s],c.z),
   a=L.CRS.EPSG3857.project(nw),b=L.CRS.EPSG3857.project(se),r=L.Browser.retina?2:1;
-  return AHO+"?bbox="+[a.x,b.y,b.x,a.y].map(v=>v.toFixed(1)).join(",")+"&bboxSR=3857&imageSR=3857&size="+(s*r)+","+(s*r)+"&format=png32&transparent=true&dpi="+(96*r)+"&f=image";}});
+  return AHO+"?bbox="+[a.x,b.y,b.x,a.y].map(v=>v.toFixed(1)).join(",")+"&bboxSR=3857&imageSR=3857&size="+(s*r)+","+(s*r)+"&format=png32&transparent=true&dpi="+(96*r)+"&f=image&display_params="+AHO_DP;}});
 const aho = new AhoLayer("",{maxZoom:19,attribution:"AHO ENC Online, not for navigation"});
 const seamark = L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png",{maxZoom:19,maxNativeZoom:18,attribution:"OpenSeaMap"});
 const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"OpenStreetMap"});
@@ -214,9 +217,9 @@ const AhoOverlay = L.GridLayer.extend({createTile(c,done){
     try{ const d=g.getImageData(0,0,sz.x,sz.y), a=d.data;
       for(let i=0;i<a.length;i+=4){ const r=a[i],gg=a[i+1],b=a[i+2];
         if(Math.abs(r-206)+Math.abs(gg-197)+Math.abs(b-138)<40 || Math.abs(r-193)+Math.abs(gg-184)+Math.abs(b-129)<25) a[i+3]=0;      // land
-        else if(Math.abs(r-130)+Math.abs(gg-189)+Math.abs(b-255)<30) a[i+3]=70;                                                      // shallow water
-        else if(Math.abs(r-158)+Math.abs(gg-206)+Math.abs(b-252)<30) a[i+3]=25;                                                      // deeper water
-        else if(Math.abs(r-120)+Math.abs(gg-183)+Math.abs(b-150)<35) a[i+3]=110; }                                                   // drying banks
+        else if(Math.abs(r-130)+Math.abs(gg-189)+Math.abs(b-255)<30) a[i+3]=110;                                                     // under 2 m at low tide
+        else if(Math.abs(r-221)+Math.abs(gg-241)+Math.abs(b-238)<25) a[i+3]=10;                                                      // over 2 m: the channels
+        else if(Math.abs(r-120)+Math.abs(gg-183)+Math.abs(b-150)<35) a[i+3]=150; }                                                   // drying banks
       g.putImageData(d,0,0); }catch(e){}
     done(null,t); };
   img.onerror=()=>done(null,t);
