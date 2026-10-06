@@ -141,6 +141,8 @@ let S = load(); // {job, track:[[t,lat,lon,sogKn,acc]], stamps:[{t,l,lat,lon,s}]
   }catch(e){alert("That job link could not be read: "+e.message);}
   history.replaceState(null,"",location.pathname);
 })();
+// a job link tapped while the page is already open only changes the # part, so reload to read it
+window.addEventListener("hashchange",()=>{ if(/[#&]j=/.test(location.hash)){ save(); location.reload(); } });
 const JOB = S.job || null;
 S.track = S.track||[]; S.stamps = S.stamps||[];
 const ZONES = (JOB && JOB.zones) || DEFAULT_ZONES;
