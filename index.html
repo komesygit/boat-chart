@@ -4,104 +4,145 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#0b2238">
+<meta name="theme-color" content="#0b1622">
 <title>Boat Chart</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
-:root{--bg:#0b2238;--ink:#fff;--mute:#9fb3c8;--ok:#1f9d55;--warn:#d97706;--bad:#dc2626;--card:rgba(11,34,56,.92);--btn:#16405f}
+:root{--bg:#0b1622;--ink:#fff;--mute:#9fb3c8;--ok:#15803d;--warn:#d97706;--bad:#dc2626;--panel:rgba(8,20,32,.93);--btn:#16405f}
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:16px/1.3 -apple-system,system-ui,Segoe UI,Roboto,sans-serif;-webkit-user-select:none;user-select:none}
-#map{position:fixed;inset:0}
-.bar{position:fixed;left:0;right:0;z-index:1000;padding:8px 10px}
-#top{top:0;padding-top:calc(8px + env(safe-area-inset-top));background:var(--card);display:flex;gap:10px;align-items:center}
-#bot{bottom:0;padding-bottom:calc(8px + env(safe-area-inset-bottom));background:var(--card)}
-.big{font-size:34px;font-weight:700;line-height:1}
-.unit{font-size:13px;color:var(--mute)}
-.cell{min-width:64px}
-#zone{flex:1;text-align:center;font-weight:700;border-radius:8px;padding:6px 4px;font-size:15px;background:#244}
-#zone.in{background:var(--warn)}#zone.over{background:var(--bad)}#zone.ok{background:var(--ok)}
-#gpsst{font-size:12px;color:var(--mute)}
-#next{font-size:13px;margin-bottom:6px;min-height:16px}
-#next b{font-size:14px}
-#turn{display:none;background:#0e3a5c;border-radius:10px;padding:8px 10px;margin-bottom:6px}
-#turn .d{font-size:24px;font-weight:800;line-height:1.05}
-#turn .t{font-size:19px;font-weight:700;margin-top:2px}
-#turn .s{font-size:14px;color:var(--mute);margin-top:2px}
-#turn.zone{background:#7c4a03}
-#turn.off .s{color:#fca5a5}
-.dl{display:flex;gap:8px;padding:9px 4px;border-bottom:1px solid #2c5272}
-.dl .n{min-width:26px;color:var(--mute)}
-.dl.now{background:#14532d}
-.dl.done{opacity:.45}
-.dl.z{color:#fbbf24}
-.dh{margin:16px 0 4px;font-weight:700;font-size:16px}
-.turnicon{background:#fff;border:2px solid #0b2238;border-radius:6px;width:10px;height:10px}
-.row{display:flex;gap:8px}
-button{font:inherit;color:var(--ink);background:var(--btn);border:0;border-radius:10px;padding:12px 10px;font-weight:600}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:16px/1.3 -apple-system,system-ui,Segoe UI,Roboto,sans-serif;-webkit-user-select:none;user-select:none;overflow:hidden}
+#map{position:fixed;left:0;right:0;top:0;bottom:0;background:#123}
+.leaflet-control-attribution{font-size:9px}
+/* the satellite photo toned down so the beacons, route and walls stand out (owner's pick, 7 Oct 2026: flat land) */
+.sat{filter:saturate(.45) brightness(.8)}
+/* bottom: three numbers, then the stamp button and More */
+#bot{position:fixed;left:0;right:0;bottom:0;z-index:1000;background:var(--bg)}
+.strip{display:grid;grid-template-columns:1fr 1.25fr 1fr;background:var(--panel)}
+.strip>div{padding:8px 10px;border-right:1px solid #345;min-width:0}.strip>div:last-child{border:0}
+.strip b{display:block;font-size:30px;line-height:1;font-weight:900;white-space:nowrap}
+.strip i{display:block;font-style:normal;font-size:12px;font-weight:800;color:var(--mute);letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:clip}
+.strip .amber b{color:#fbbf24}.strip .red b{color:#f87171}
+.bottom{display:grid;grid-template-columns:3fr 1fr;gap:8px;padding:10px 10px calc(10px + env(safe-area-inset-bottom))}
+button{font:inherit;color:var(--ink);background:var(--btn);border:0;border-radius:14px;padding:12px 10px;font-weight:700}
 button:active{filter:brightness(1.3)}
-#stamp{flex:2;background:var(--ok);font-size:15px;padding:10px 6px;line-height:1.15}
-#rowRun button{padding:10px 6px;font-size:14px}
-#stamp.done{background:#555}
-#start{flex:1;background:var(--ok);font-size:18px}
-.fab{position:fixed;right:10px;z-index:1000;width:46px;height:46px;border-radius:23px;padding:0;font-size:20px;background:var(--card);border:1px solid #2c5272}
-#centre{top:calc(78px + env(safe-area-inset-top))}
-#layers{top:calc(132px + env(safe-area-inset-top))}
-#basebtn{top:calc(186px + env(safe-area-inset-top));font-size:12px;font-weight:800}
-#rotbtn{top:calc(240px + env(safe-area-inset-top));font-size:11px;font-weight:800;line-height:1.05}
-.nextturn{width:30px;height:30px;border-radius:15px;border:4px solid #f97316;background:rgba(249,115,22,.25);box-shadow:0 0 0 3px #fff}
-#tide{position:fixed;left:8px;z-index:999;top:calc(80px + env(safe-area-inset-top));background:rgba(11,34,56,.9);border:1px solid #2c5272;font-size:13px;font-weight:700;padding:5px 8px;border-radius:8px;max-width:62%}
-#tide .m{font-weight:400;color:var(--mute);font-size:11px}
-.sheet{position:fixed;inset:0;z-index:2000;background:var(--bg);overflow:auto;padding:calc(14px + env(safe-area-inset-top)) 14px calc(20px + env(safe-area-inset-bottom));display:none;-webkit-user-select:text;user-select:text}
-.sheet.show{display:block}
-.sheet h2{margin:4px 0 10px;font-size:20px}
-.sheet table{border-collapse:collapse;width:100%;font-size:14px}
-.sheet td,.sheet th{border-bottom:1px solid #2c5272;padding:6px 4px;text-align:left;vertical-align:top}
-.sheet .row{flex-wrap:wrap;margin:12px 0}
-.sheet .row button{flex:1 1 45%}
-.sheet label{display:block;padding:10px 0;border-bottom:1px solid #2c5272}
-.mute{color:var(--mute);font-size:13px}
-textarea{width:100%;height:90px;font:13px monospace;background:#081a2b;color:var(--ink);border:1px solid #2c5272;border-radius:8px}
-.me{width:26px;height:26px}
-.me svg{width:26px;height:26px;transition:transform .3s}
-.stopicon{background:none;border:0}
+#stamp,#start{background:var(--ok);text-align:left;padding:10px 14px;min-height:64px}
+#stamp .w{font-size:19px;font-weight:900;margin-right:8px}#stamp #stampL{font-size:15px;font-weight:700}
+#stamp small{display:block;font-size:12px;font-weight:600;opacity:.85;margin-top:2px}
+#stamp.done{background:#444}
+#start{font-size:17px;font-weight:900}
+.morebtn{background:#222;font-weight:800;font-size:16px}
+/* things floating on the map */
+.hud{position:fixed;z-index:900}
+.cn{top:calc(10px + env(safe-area-inset-top));padding:7px 10px 6px;border-radius:12px;background:rgba(8,20,32,.55);display:none;flex-direction:column;align-items:center;gap:2px;font-size:19px;font-weight:800;animation:fade 3s ease-in-out infinite}
+.cn.l{left:10px}.cn.r{right:10px}.cn.show{display:flex}
+.cn small{font-size:11px;font-weight:600;letter-spacing:.04em;opacity:.8}
+@keyframes fade{0%,100%{opacity:1}50%{opacity:.45}}
+#topc{left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top));display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none}
+.br{display:none;width:150px;border-radius:12px;padding:6px 6px 7px;text-align:center;background:rgba(8,20,32,.6);font-weight:700;line-height:1.15}
+.br.show{display:block}
+.br .n{font-size:10px;letter-spacing:.05em;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:clip}.br .h{font-size:19px;font-weight:900;white-space:nowrap}
+.br .y{font-size:11px;opacity:.85}.br .s{font-size:13px;font-weight:900;margin-top:2px}.br .s span{display:block;font-weight:700;font-size:11px}
+.br.ok .s{color:#86efac}.br.tight,.br.unk{background:rgba(120,70,0,.78)}.br.tight .s,.br.unk .s{color:#fde68a}.br.no{background:rgba(150,20,30,.88)}.br.no .s{color:#fff}
+#zone{display:none;border-radius:10px;padding:4px 10px;font-size:14px;font-weight:900;background:var(--warn);white-space:nowrap}
+#zone.show{display:block}#zone.over{background:var(--bad)}
+#wind{left:10px;display:none;align-items:center;gap:8px;background:rgba(8,20,32,.6);border-radius:12px;padding:5px 10px 5px 6px}
+#wind.show{display:flex}#wind b{font-size:17px;font-weight:900}#wind i{display:block;font-style:normal;font-size:10px;opacity:.75}
+#flowtag{right:10px;display:none;font-size:11px;font-weight:600;color:rgba(235,245,255,.8);text-shadow:0 0 3px #000;text-align:right}
+#flowtag.show{display:block}
+#centre{right:10px;display:none;width:auto;padding:8px 12px;font-size:13px;background:rgba(8,20,32,.8);border:1px solid #2c5272}
+#centre.show{display:block}
+/* map markers */
+.bk,.om,.hl,.stopicon,.goal,.pl,.lmk{background:none;border:0}
+.hl{border-radius:50%;border:3px solid rgba(255,255,255,.42)!important;box-shadow:0 0 0 2px rgba(0,0,0,.25)}
+.pl{overflow:visible}.pl span,.lmk span{position:absolute;left:0;top:0;transform:translate(-50%,-50%);white-space:nowrap;text-shadow:0 0 3px #000,0 0 6px #000;pointer-events:none}
+.pl .w{font-style:italic;color:rgba(205,230,255,.85);text-transform:uppercase;font-weight:600;font-size:14px;letter-spacing:.06em}
+.pl .g{color:rgba(255,255,255,.88);font-weight:900;font-size:16px;letter-spacing:.04em}
+.lmk span{transform:translate(-50%,-150%);font-size:13px;font-weight:800;color:#fff}
 .stopicon div{position:absolute;left:0;top:0;transform:translate(-50%,-50%);white-space:nowrap;background:#fff;color:#0b2238;border:2px solid #0b2238;border-radius:10px;font:800 12px sans-serif;padding:2px 6px}
-.wlabel{background:none;border:0}
-.mb{background:none;border:0}
-.mb .p{position:absolute;left:-7px;top:-7px;width:14px;height:14px;background:#e11d48;border:2px solid #fff;box-shadow:0 0 3px #000}
-.mb .s{position:absolute;left:-9px;top:-11px;width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-bottom:16px solid #16a34a;filter:drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 2px #000)}
-.wlabel div{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;color:#e0f2fe;font:800 13px sans-serif;letter-spacing:2px;text-shadow:0 0 3px #0b2238,0 0 6px #0b2238;pointer-events:none}
-.goal{background:none;border:0}
 .goal .ring{position:absolute;left:-34px;top:-34px;width:68px;height:68px;border-radius:34px;border:6px solid #ef4444;background:rgba(239,68,68,.25);animation:pulse 1.4s ease-out infinite}
 .goal .dot{position:absolute;left:-9px;top:-9px;width:18px;height:18px;border-radius:9px;background:#ef4444;border:3px solid #fff}
 .goal .lbl{position:absolute;left:0;top:-70px;transform:translateX(-50%);white-space:nowrap;background:#ef4444;color:#fff;font:900 18px sans-serif;padding:5px 10px;border-radius:10px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5)}
 @keyframes pulse{0%{transform:scale(.6);opacity:1}100%{transform:scale(1.4);opacity:.2}}
 .stampicon{background:var(--ok);border:2px solid #fff;border-radius:8px;width:12px;height:12px}
-.leaflet-control-attribution{font-size:9px}
+.me svg{width:40px;height:40px}
+/* zoomed out to see the whole job: no beacons, marks or names, so the route and stops read */
+.z13 .bk,.z13 .om,.z13 .hl,.z14 .bk,.z14 .om,.z14 .hl,.z13 .pl,.z13 .lmk{display:none}
+/* sheets */
+.sheet{position:fixed;inset:0;z-index:2000;background:var(--bg);overflow:auto;padding:calc(14px + env(safe-area-inset-top)) 14px calc(20px + env(safe-area-inset-bottom));display:none;-webkit-user-select:text;user-select:text}
+.sheet.show{display:block}
+.sheet h2{margin:4px 0 10px;font-size:22px}
+.sheet table{border-collapse:collapse;width:100%;font-size:14px}
+.sheet td,.sheet th{border-bottom:1px solid #2c5272;padding:6px 4px;text-align:left;vertical-align:top}
+.sheet .row{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.sheet .row button{flex:1 1 45%}
+.sheet label{display:block;padding:10px 0;border-bottom:1px solid #2c5272}
+.sheet a{color:#93c5fd}
+.mgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0 14px}
+.mgrid button{min-height:58px;font-size:15px}
+.mute{color:var(--mute);font-size:13px}
+textarea{width:100%;height:90px;font:13px monospace;background:#081a2b;color:var(--ink);border:1px solid #2c5272;border-radius:8px}
+.dl{display:flex;gap:8px;padding:9px 4px;border-bottom:1px solid #2c5272}
+.dl .n{min-width:26px;color:var(--mute)}.dl.now{background:#14532d}.dl.done{opacity:.45}.dl.z{color:#fbbf24}
+.dh{margin:16px 0 4px;font-weight:700;font-size:16px}
+.f{background:#13263a;border-radius:14px;padding:14px;margin-bottom:12px}
+.f label{display:block;font-size:15px;font-weight:800;padding:0;border:0}
+.f .v{display:flex;align-items:center;gap:10px;margin:8px 0 6px}
+.f input{width:110px;font:900 28px sans-serif;color:#fff;background:#0b1622;border:2px solid #2c5272;border-radius:10px;padding:4px 12px}
+.f .v span{font-size:18px;color:var(--mute)}
+.f p{margin:0;font-size:13px;color:var(--mute);line-height:1.35}
+.f input::-webkit-outer-spin-button,.f input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}.f input{-moz-appearance:textfield}
+#saveSet{width:100%;background:var(--ok);font-size:18px;font-weight:900;padding:14px}
 </style>
 </head>
 <body>
 <div id="map"></div>
-<div id="tide"></div>
-<div id="top" class="bar">
-  <div class="cell"><div class="big" id="sog">-</div><div class="unit">knots</div></div>
-  <div class="cell"><div class="big" id="cog" style="font-size:24px">-</div><div class="unit">heading</div></div>
-  <div id="zone">No zone data</div>
-  <div class="cell" style="text-align:right;min-width:70px"><div id="clock" style="font-size:20px;font-weight:700">-</div><div id="gpsst">GPS off</div></div>
-</div>
-<button class="fab" id="centre" title="Follow my position">&#9678;</button>
-<button class="fab" id="layers" title="Chart layers">&#9776;</button>
-<button class="fab" id="basebtn" title="Chart or satellite">SAT</button>
-<button class="fab" id="rotbtn" title="Heading up or north up">HDG<br>UP</button>
-<div id="bot" class="bar">
-  <div id="turn"><div class="d" id="turnD"></div><div class="t" id="turnT"></div><div class="s" id="turnS"></div></div>
-  <div id="next"></div>
-  <div class="row" id="rowStart"><button id="start">Start GPS and recording</button><button class="dirbtn">Directions</button></div>
-  <div class="row" id="rowRun" style="display:none">
-    <button id="stamp">Stamp</button>
-    <button id="undo" title="Undo last stamp">Undo</button>
-    <button class="dirbtn">Directions</button>
-    <button id="menu">Times</button>
+<div class="hud cn l" id="chipL"></div>
+<div class="hud cn r" id="chipR"></div>
+<div class="hud" id="topc"><div class="br" id="bridge"></div><div id="zone"></div></div>
+<div class="hud" id="wind"></div>
+<div class="hud" id="flowtag"></div>
+<button class="hud" id="centre">Follow me</button>
+<div id="bot">
+  <div class="strip">
+    <div id="cKn"><b id="sog">-</b><i id="gpsst">GPS OFF</i></div>
+    <div id="cDp"><b id="depth">-</b><i id="depthCap">DEPTH NOW</i></div>
+    <div id="cTd"><b id="tideH">-</b><i id="tideCap">TIDE</i></div>
   </div>
+  <div class="bottom" id="rowStart"><button id="start">Start GPS and recording</button><button class="morebtn">More</button></div>
+  <div class="bottom" id="rowRun" style="display:none"><button id="stamp"><span class="w">STAMP</span><span id="stampL"></span><small id="next"></small></button><button class="morebtn">More</button></div>
+</div>
+
+<div class="sheet" id="moreSheet">
+  <h2>More</h2>
+  <div class="mgrid">
+    <button id="mTimes">Times and track</button>
+    <button id="undo">Undo last stamp</button>
+    <button class="dirbtn">Directions list</button>
+    <button id="mLayers">Chart layers</button>
+    <button id="rotbtn">Heading up</button>
+    <button id="basebtn">Plain official chart</button>
+    <button id="mSettings">Boat settings</button>
+    <button id="mCentre">Follow my position</button>
+  </div>
+  <p class="mute" id="gpsInfo"></p>
+  <p class="mute" id="tideInfo"></p>
+  <p class="mute">Wind on the chart is from a forecast model (Open-Meteo) at your position. Measured wind at the Seaway: <a href="https://www.bom.gov.au/products/IDQ60801/IDQ60801.94580.shtml" target="_blank" rel="noopener">Gold Coast Seaway observations, Bureau of Meteorology</a>.</p>
+  <div class="row"><button id="closeMore">Back to chart</button></div>
+</div>
+
+<div class="sheet" id="setSheet">
+  <h2>Boat settings</h2>
+  <div class="f"><label for="sH">Height above the water</label><div class="v"><input id="sH" type="number" inputmode="decimal" step="0.1" min="0"><span>m</span></div>
+    <p>From the waterline to the highest point with everything up: radar arch, antennas, bimini, rod holders. Used for bridges.</p></div>
+  <div class="f"><label for="sD">Draft</label><div class="v"><input id="sD" type="number" inputmode="decimal" step="0.1" min="0"><span>m</span></div>
+    <p>How deep the hull and leg sit. Used for the depth colour.</p></div>
+  <div class="f"><label for="sM">Safety margin</label><div class="v"><input id="sM" type="number" inputmode="decimal" step="0.1" min="0"><span>m</span></div>
+    <p>Room to spare you want under bridges and over the bottom, for wash and swell.</p></div>
+  <div class="f"><label for="sL">Boat length</label><div class="v"><input id="sL" type="number" inputmode="decimal" step="0.1" min="0"><span>m</span></div>
+    <p>Sets which 6 knot zones apply to you. Left empty, the job's length is used.</p></div>
+  <button id="saveSet">Save</button>
+  <div class="row"><button id="closeSet">Back without saving</button></div>
+  <p class="mute">Kept on this phone only.</p>
 </div>
 
 <div class="sheet" id="sumSheet">
@@ -133,7 +174,7 @@ textarea{width:100%;height:90px;font:13px monospace;background:#081a2b;color:var
   <label><input type="checkbox" id="lyZones" checked> 6 knot zones</label>
   <label><input type="checkbox" id="lyRoute" checked> Planned route and stops</label>
   <label><input type="checkbox" id="lyTrack" checked> My track</label>
-  <p class="mute">Tide: MSQ predictions for Southport (Gold Coast Seaway), heights above lowest astronomical tide, the same datum as the chart soundings. Satellite: Esri World Imagery. Chart: Australian Hydrographic Office ENC Online, not for navigation. Beacons: OpenSeaMap. Zones: approximate, drawn from the MSQ schedule of speed limits, Gold Coast waterways. The boat's own chart plotter stays the primary.</p>
+  <p class="mute">Satellite: Esri World Imagery, toned down. Depths, land, beacons, names, walls, bridges and bridge clearances: Australian Hydrographic Office ENC Online, not for navigation, fetched when the job link was made; Coomera River beacons from the MSQ Beacon to Beacon maps. Depth now = the shallowest charted depth where you are on the route plus the tide. Tide: MSQ predictions for Southport (Gold Coast Seaway), heights above lowest astronomical tide, the chart datum; north of Runaway Bay the Paradise Point rule (1 hour later, 0.87 of the height, MSQ Southport port procedures). Bridges: clearance above highest astronomical tide (1.97 m at the Seaway, MSQ tidal planes 2025) corrected for the tide now. Tide flow arrows: direction only, estimated by rule (flood from about 1.5 h after low water to 1.5 h after high water at the Seaway, Griffith University Broadwater model study). Wind: Open-Meteo forecast model at your position. Zones: approximate, drawn from the MSQ schedule of speed limits, Gold Coast waterways. The boat's own chart plotter stays the primary.</p>
   <div class="row"><button id="closeLay">Back to chart</button></div>
 </div>
 
@@ -141,14 +182,18 @@ textarea{width:100%;height:90px;font:13px monospace;background:#081a2b;color:var
 <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
 <script>
 "use strict";
-// ---------- default 6 knot zones (MSQ schedule, approximate polygons, [lon, lat]) ----------
-const DEFAULT_ZONES = {"zones":[{"id":"coomera_south_branch","name":"Coomera South Branch, Paradise Point to Sanctuary Cove","speed_kn":6,"min_length_m":6.5,"poly":[[153.377,-27.875],[153.405,-27.875],[153.405,-27.84],[153.377,-27.84]]},{"id":"coomera_foxwell_rail","name":"Coomera River, Foxwell Island to the rail bridge","speed_kn":6,"min_length_m":0,"poly":[[153.333,-27.88],[153.377,-27.88],[153.377,-27.86],[153.333,-27.86]]},{"id":"coomera_hope_foxwell","name":"Coomera River, Hope Island to Foxwell Island","speed_kn":6,"min_length_m":8.0,"poly":[[153.333,-27.86],[153.377,-27.86],[153.377,-27.84],[153.333,-27.84]]},{"id":"nerang_broadbeach_waters","name":"Nerang River near Broadbeach Waters and Bundall","speed_kn":6,"min_length_m":0,"poly":[[153.38,-28.05],[153.405,-28.05],[153.405,-28.019],[153.38,-28.019]]},{"id":"nerang_upstream_gc_hwy","name":"Nerang River upstream of the Gold Coast Highway bridge","speed_kn":6,"min_length_m":8.0,"poly":[[153.405,-28.03],[153.428,-28.03],[153.428,-27.985],[153.405,-27.985]]}]};
-const MARKS = [{"name":"Chevron Island","lat":-27.99694,"lon":153.42},{"name":"Sundale Bridge","lat":-27.97449,"lon":153.41951},{"name":"Sovereign Island","lat":-27.87817,"lon":153.40317},{"name":"Paradise Point","lat":-27.88214,"lon":153.39538},{"name":"Hope Island","lat":-27.86894,"lon":153.37771},{"name":"Isle of Capri ramp","lat":-28.009693,"lon":153.425388},{"name":"Coomera River ramp","lat":-27.8776,"lon":153.3137}];
-const WLABELS = [{"name":"NERANG RIVER","lat":-27.992,"lon":153.4167},{"name":"THE BROADWATER","lat":-27.925,"lon":153.4174},{"name":"COOMERA RIVER","lat":-27.8474,"lon":153.36},{"name":"COOMERA RIVER","lat":-27.8761,"lon":153.33}];
-const MSQB = [{"s":"p","lat":-27.876362,"lon":153.39199},{"s":"p","lat":-27.877517,"lon":153.387758},{"s":"p","lat":-27.877953,"lon":153.413838},{"s":"p","lat":-27.878005,"lon":153.400025},{"s":"p","lat":-27.876857,"lon":153.387386},{"s":"p","lat":-27.879308,"lon":153.399511},{"s":"p","lat":-27.884677,"lon":153.405108},{"s":"p","lat":-27.886116,"lon":153.41897},{"s":"p","lat":-27.887634,"lon":153.413384},{"s":"p","lat":-27.890469,"lon":153.401175},{"s":"p","lat":-27.888877,"lon":153.383397},{"s":"p","lat":-27.893073,"lon":153.415585},{"s":"p","lat":-27.894289,"lon":153.403686},{"s":"p","lat":-27.899296,"lon":153.419069},{"s":"p","lat":-27.899044,"lon":153.405338},{"s":"p","lat":-27.90546,"lon":153.418578},{"s":"p","lat":-27.908689,"lon":153.416125},{"s":"p","lat":-27.914279,"lon":153.410124},{"s":"p","lat":-27.919486,"lon":153.410315},{"s":"p","lat":-27.922115,"lon":153.414363},{"s":"p","lat":-27.922812,"lon":153.407769},{"s":"p","lat":-27.922397,"lon":153.40847},{"s":"p","lat":-27.924162,"lon":153.405428},{"s":"p","lat":-27.926509,"lon":153.402972},{"s":"p","lat":-27.928288,"lon":153.416976},{"s":"p","lat":-27.927811,"lon":153.403756},{"s":"s","lat":-27.878111,"lon":153.410367},{"s":"s","lat":-27.878005,"lon":153.400025},{"s":"s","lat":-27.88333,"lon":153.398135},{"s":"s","lat":-27.88394,"lon":153.40649},{"s":"s","lat":-27.885556,"lon":153.398271},{"s":"s","lat":-27.886399,"lon":153.41465},{"s":"s","lat":-27.887455,"lon":153.383361},{"s":"s","lat":-27.888024,"lon":153.399306},{"s":"s","lat":-27.888537,"lon":153.406184},{"s":"s","lat":-27.889406,"lon":153.400696},{"s":"s","lat":-27.890689,"lon":153.416023},{"s":"s","lat":-27.898328,"lon":153.406574},{"s":"s","lat":-27.901335,"lon":153.40773},{"s":"s","lat":-27.903135,"lon":153.420144},{"s":"s","lat":-27.905441,"lon":153.419871},{"s":"s","lat":-27.907772,"lon":153.419469},{"s":"s","lat":-27.910723,"lon":153.411386},{"s":"s","lat":-27.916297,"lon":153.414086},{"s":"s","lat":-27.921787,"lon":153.415419},{"s":"s","lat":-27.922457,"lon":153.410188},{"s":"s","lat":-27.92242,"lon":153.407895},{"s":"s","lat":-27.925959,"lon":153.404768},{"s":"s","lat":-27.926564,"lon":153.402641},{"s":"s","lat":-27.927506,"lon":153.418088},{"s":"p","lat":-27.830352,"lon":153.385734},{"s":"p","lat":-27.831128,"lon":153.383312},{"s":"p","lat":-27.831513,"lon":153.382321},{"s":"p","lat":-27.832944,"lon":153.387418},{"s":"p","lat":-27.842802,"lon":153.374922},{"s":"p","lat":-27.847301,"lon":153.354202},{"s":"p","lat":-27.848034,"lon":153.353418},{"s":"p","lat":-27.848767,"lon":153.366164},{"s":"p","lat":-27.85194,"lon":153.366659},{"s":"p","lat":-27.854834,"lon":153.376531},{"s":"p","lat":-27.855909,"lon":153.378756},{"s":"p","lat":-27.857512,"lon":153.38038},{"s":"p","lat":-27.859976,"lon":153.3485},{"s":"p","lat":-27.862609,"lon":153.342052},{"s":"p","lat":-27.871559,"lon":153.381413},{"s":"p","lat":-27.872129,"lon":153.380491},{"s":"p","lat":-27.873008,"lon":153.377926},{"s":"p","lat":-27.877647,"lon":153.387583},{"s":"p","lat":-27.876986,"lon":153.387212},{"s":"p","lat":-27.826984,"lon":153.373572},{"s":"p","lat":-27.827314,"lon":153.365772},{"s":"p","lat":-27.828671,"lon":153.364596},{"s":"p","lat":-27.831202,"lon":153.359932},{"s":"s","lat":-27.835877,"lon":153.381516},{"s":"s","lat":-27.846329,"lon":153.376193},{"s":"s","lat":-27.846641,"lon":153.354051},{"s":"s","lat":-27.847261,"lon":153.353608},{"s":"s","lat":-27.853333,"lon":153.370043},{"s":"s","lat":-27.854545,"lon":153.377596},{"s":"s","lat":-27.85546,"lon":153.369713},{"s":"s","lat":-27.860096,"lon":153.344056},{"s":"s","lat":-27.859587,"lon":153.348502},{"s":"s","lat":-27.859971,"lon":153.347716},{"s":"s","lat":-27.862761,"lon":153.341529},{"s":"s","lat":-27.863673,"lon":153.341949},{"s":"s","lat":-27.866069,"lon":153.382357},{"s":"s","lat":-27.871658,"lon":153.382139},{"s":"s","lat":-27.87205,"lon":153.378781},{"s":"s","lat":-27.874639,"lon":153.384013},{"s":"p","lat":-27.859936,"lon":153.315606},{"s":"p","lat":-27.86119,"lon":153.315369},{"s":"p","lat":-27.862721,"lon":153.342135},{"s":"p","lat":-27.87706,"lon":153.313718},{"s":"p","lat":-27.893333,"lon":153.342523},{"s":"s","lat":-27.860204,"lon":153.344141},{"s":"s","lat":-27.860042,"lon":153.315957},{"s":"s","lat":-27.861132,"lon":153.31578},{"s":"s","lat":-27.86132,"lon":153.314822},{"s":"s","lat":-27.862721,"lon":153.342135}]; // Coomera River beacons read off the MSQ Beacon to Beacon maps (about 40 m either way) // river names written on the water, from data/water_labels.json
-const TIDES = [[1767212580,1.76],[1767237060,0.33],[1767256560,1.14],[1767277680,0.14],[1767302100,1.87],[1767326880,0.24],[1767346500,1.15],[1767367200,0.11],[1767391560,1.94],[1767416400,0.19],[1767436140,1.17],[1767456660,0.1],[1767480960,1.96],[1767505620,0.17],[1767525480,1.18],[1767546000,0.12],[1767570180,1.93],[1767594720,0.18],[1767614760,1.19],[1767635280,0.17],[1767659280,1.86],[1767683700,0.22],[1767703920,1.19],[1767724500,0.26],[1767748260,1.74],[1767772500,0.27],[1767793200,1.18],[1767813780,0.37],[1767837000,1.6],[1767861180,0.32],[1767882660,1.18],[1767903240,0.5],[1767925800,1.45],[1767949860,0.37],[1767972600,1.19],[1767993180,0.61],[1768014660,1.3],[1768038600,0.4],[1768063020,1.22],[1768084020,0.69],[1768104000,1.17],[1768127700,0.42],[1768153500,1.28],[1768175700,0.71],[1768194120,1.06],[1768217220,0.44],[1768243500,1.36],[1768267020,0.66],[1768285020,1.0],[1768306860,0.43],[1768332960,1.44],[1768357200,0.58],[1768375740,0.99],[1768396440,0.4],[1768422000,1.52],[1768446480,0.5],[1768465500,1.02],[1768485600,0.37],[1768510800,1.59],[1768535280,0.43],[1768554600,1.05],[1768574580,0.32],[1768599480,1.65],[1768623840,0.37],[1768643220,1.1],[1768663320,0.27],[1768688100,1.71],[1768712280,0.34],[1768731780,1.14],[1768752000,0.23],[1768776540,1.74],[1768800660,0.31],[1768820280,1.18],[1768840740,0.21],[1768865040,1.76],[1768889100,0.28],[1768908840,1.22],[1768929540,0.22],[1768953600,1.76],[1768977540,0.27],[1768997640,1.25],[1769018400,0.25],[1769042040,1.72],[1769066040,0.26],[1769086560,1.28],[1769107500,0.32],[1769130600,1.65],[1769154540,0.27],[1769175780,1.3],[1769196720,0.4],[1769219340,1.54],[1769243160,0.28],[1769265300,1.33],[1769286600,0.49],[1769308320,1.41],[1769332080,0.31],[1769355540,1.36],[1769377140,0.58],[1769398080,1.26],[1769421540,0.34],[1769446320,1.42],[1769469000,0.62],[1769488920,1.13],[1769511600,0.36],[1769537220,1.51],[1769561400,0.57],[1769580480,1.05],[1769602260,0.35],[1769627700,1.63],[1769652720,0.47],[1769671920,1.06],[1769692740,0.3],[1769717700,1.75],[1769742720,0.35],[1769762400,1.11],[1769782920,0.23],[1769807340,1.84],[1769832000,0.27],[1769851980,1.18],[1769872560,0.17],[1769896620,1.9],[1769921040,0.21],[1769941140,1.25],[1769961960,0.13],[1769985720,1.92],[1770009840,0.19],[1770030120,1.3],[1770051120,0.13],[1770074520,1.88],[1770098400,0.2],[1770119040,1.33],[1770140040,0.19],[1770163200,1.8],[1770186900,0.23],[1770207780,1.35],[1770228960,0.28],[1770251760,1.68],[1770275220,0.28],[1770296580,1.35],[1770317880,0.39],[1770340140,1.54],[1770363360,0.32],[1770385500,1.34],[1770406920,0.51],[1770428580,1.39],[1770451440,0.37],[1770474600,1.32],[1770496260,0.62],[1770517020,1.24],[1770539760,0.43],[1770564300,1.3],[1770586620,0.7],[1770606060,1.1],[1770628500,0.48],[1770654960,1.3],[1770678840,0.74],[1770696420,0.99],[1770718320,0.53],[1770746040,1.33],[1770771180,0.69],[1770788520,0.93],[1770809220,0.55],[1770836400,1.4],[1770861600,0.61],[1770880320,0.96],[1770900060,0.52],[1770925980,1.48],[1770950760,0.52],[1770970200,1.02],[1770990000,0.46],[1771015020,1.57],[1771039380,0.45],[1771059120,1.09],[1771079280,0.37],[1771103700,1.65],[1771127820,0.38],[1771147680,1.17],[1771168140,0.3],[1771192200,1.72],[1771216080,0.32],[1771236060,1.25],[1771256880,0.23],[1771280640,1.77],[1771304340,0.27],[1771324560,1.33],[1771345680,0.2],[1771369080,1.79],[1771392600,0.23],[1771413240,1.4],[1771434540,0.2],[1771457460,1.77],[1771480980,0.2],[1771501980,1.46],[1771523460,0.23],[1771546020,1.71],[1771569300,0.2],[1771590840,1.5],[1771612620,0.3],[1771634640,1.6],[1771657740,0.23],[1771679880,1.52],[1771701960,0.4],[1771723380,1.45],[1771746240,0.28],[1771769340,1.52],[1771791840,0.51],[1771812540,1.28],[1771835040,0.35],[1771859460,1.51],[1771882800,0.6],[1771902600,1.12],[1771924620,0.42],[1771950540,1.5],[1771975380,0.62],[1771994460,1.01],[1772015580,0.48],[1772041980,1.55],[1772067600,0.55],[1772087040,1.0],[1772107200,0.47],[1772132880,1.63],[1772158140,0.45],[1772178180,1.08],[1772198280,0.4],[1772222880,1.72],[1772247540,0.35],[1772267940,1.18],[1772288400,0.31],[1772312220,1.79],[1772336400,0.28],[1772357040,1.28],[1772377920,0.23],[1772401200,1.83],[1772424960,0.24],[1772445840,1.37],[1772467020,0.2],[1772489880,1.82],[1772513400,0.22],[1772534520,1.44],[1772555880,0.21],[1772578500,1.76],[1772601720,0.23],[1772623080,1.49],[1772644680,0.26],[1772666940,1.67],[1772689860,0.25],[1772711640,1.51],[1772733480,0.33],[1772755200,1.56],[1772777820,0.29],[1772800140,1.51],[1772822220,0.42],[1772843460,1.43],[1772865720,0.33],[1772888640,1.5],[1772911080,0.52],[1772931780,1.29],[1772953620,0.39],[1772977440,1.47],[1773000240,0.61],[1773020220,1.16],[1773041700,0.45],[1773066600,1.42],[1773090240,0.68],[1773109260,1.05],[1773130380,0.53],[1773156600,1.37],[1773181980,0.72],[1773199740,0.96],[1773219960,0.6],[1773247980,1.35],[1773274320,0.69],[1773292380,0.92],[1773311460,0.64],[1773339240,1.39],[1773364860,0.62],[1773384300,0.97],[1773403500,0.61],[1773429300,1.46],[1773454080,0.54],[1773474120,1.06],[1773493980,0.53],[1773518460,1.56],[1773542700,0.45],[1773562980,1.17],[1773583440,0.43],[1773607200,1.64],[1773630960,0.37],[1773651600,1.28],[1773672480,0.34],[1773695700,1.71],[1773719280,0.29],[1773740100,1.4],[1773761400,0.27],[1773784200,1.75],[1773807540,0.22],[1773828720,1.51],[1773850440,0.23],[1773872760,1.75],[1773895860,0.18],[1773917400,1.61],[1773939480,0.22],[1773961320,1.69],[1773984240,0.16],[1774006200,1.69],[1774028640,0.25],[1774050060,1.6],[1774072680,0.18],[1774095240,1.73],[1774117920,0.32],[1774138980,1.46],[1774161120,0.23],[1774184400,1.73],[1774207680,0.41],[1774228080,1.3],[1774249800,0.32],[1774273920,1.69],[1774297980,0.5],[1774317780,1.15],[1774338900,0.42],[1774364160,1.63],[1774389540,0.57],[1774408920,1.03],[1774429020,0.51],[1774455300,1.58],[1774481400,0.56],[1774501380,1.0],[1774520880,0.56],[1774546800,1.59],[1774572480,0.5],[1774593120,1.06],[1774612800,0.54],[1774637520,1.63],[1774662360,0.43],[1774683420,1.18],[1774703640,0.46],[1774727280,1.68],[1774751400,0.36],[1774772700,1.3],[1774793460,0.39],[1774816380,1.7],[1774840020,0.31],[1774861560,1.41],[1774882800,0.33],[1774905180,1.69],[1774928400,0.27],[1774950180,1.5],[1774971780,0.31],[1774993680,1.65],[1775016660,0.26],[1775038680,1.57],[1775060580,0.32],[1775082120,1.59],[1775104680,0.26],[1775127120,1.62],[1775149320,0.36],[1775170500,1.5],[1775192640,0.28],[1775215500,1.65],[1775238120,0.4],[1775258880,1.4],[1775280540,0.31],[1775303880,1.65],[1775326800,0.46],[1775347200,1.3],[1775368440,0.36],[1775392320,1.63],[1775415720,0.52],[1775435640,1.2],[1775456400,0.41],[1775480940,1.58],[1775504880,0.58],[1775524260,1.1],[1775544660,0.48],[1775569920,1.52],[1775594700,0.64],[1775613480,1.02],[1775633400,0.56],[1775659560,1.45],[1775685540,0.67],[1775703900,0.97],[1775723040,0.63],[1775750280,1.41],[1775776680,0.65],[1775796000,0.96],[1775814300,0.68],[1775841300,1.42],[1775867040,0.6],[1775887320,1.03],[1775906400,0.66],[1775931600,1.47],[1775956440,0.52],[1775977200,1.13],[1775997180,0.59],[1776021060,1.54],[1776045180,0.43],[1776066300,1.26],[1776087060,0.5],[1776110040,1.61],[1776133740,0.34],[1776155160,1.41],[1776176520,0.41],[1776198780,1.65],[1776222120,0.26],[1776243900,1.55],[1776265860,0.34],[1776287580,1.65],[1776310560,0.19],[1776332700,1.69],[1776355140,0.29],[1776376380,1.62],[1776399060,0.15],[1776421560,1.8],[1776444420,0.27],[1776465300,1.54],[1776487560,0.15],[1776510600,1.88],[1776533940,0.28],[1776554460,1.44],[1776576240,0.19],[1776599820,1.9],[1776623580,0.33],[1776643860,1.31],[1776664980,0.26],[1776689160,1.88],[1776713640,0.39],[1776733560,1.19],[1776754020,0.36],[1776778980,1.81],[1776804300,0.46],[1776824040,1.09],[1776843720,0.46],[1776869220,1.72],[1776895200,0.49],[1776915300,1.05],[1776934500,0.55],[1776960060,1.65],[1776985980,0.49],[1777006920,1.08],[1777026300,0.59],[1777050960,1.61],[1777076100,0.46],[1777097760,1.17],[1777117620,0.58],[1777141260,1.6],[1777165680,0.42],[1777187700,1.28],[1777208220,0.54],[1777230900,1.58],[1777254600,0.37],[1777276920,1.4],[1777298040,0.49],[1777320000,1.55],[1777343160,0.34],[1777365780,1.51],[1777387440,0.46],[1777408680,1.51],[1777431480,0.31],[1777454280,1.6],[1777476480,0.44],[1777497300,1.46],[1777519620,0.3],[1777542720,1.67],[1777565340,0.43],[1777585800,1.4],[1777607640,0.3],[1777631100,1.71],[1777654140,0.44],[1777674360,1.33],[1777695600,0.31],[1777719480,1.73],[1777743000,0.45],[1777762800,1.27],[1777783620,0.34],[1777807860,1.73],[1777831740,0.47],[1777851420,1.2],[1777871700,0.38],[1777896420,1.7],[1777920660,0.51],[1777940040,1.14],[1777959960,0.43],[1777985100,1.65],[1778009760,0.55],[1778028900,1.09],[1778048520,0.49],[1778074020,1.6],[1778099220,0.58],[1778118120,1.04],[1778137440,0.56],[1778163300,1.54],[1778189100,0.6],[1778208240,1.02],[1778227080,0.62],[1778253240,1.5],[1778279100,0.59],[1778299200,1.03],[1778317800,0.67],[1778343420,1.48],[1778368920,0.55],[1778390040,1.1],[1778409180,0.67],[1778433480,1.49],[1778458320,0.48],[1778480100,1.22],[1778500140,0.64],[1778523240,1.51],[1778547300,0.39],[1778569500,1.36],[1778590620,0.57],[1778612520,1.53],[1778636100,0.31],[1778658660,1.52],[1778680620,0.49],[1778701800,1.52],[1778724900,0.24],[1778747700,1.68],[1778770380,0.41],[1778791020,1.49],[1778813580,0.18],[1778836740,1.83],[1778860020,0.34],[1778880360,1.44],[1778902380,0.16],[1778925900,1.94],[1778949720,0.3],[1778969760,1.37],[1778991300,0.16],[1779015180,2.0],[1779039420,0.29],[1779059400,1.3],[1779080340,0.2],[1779104640,2.01],[1779129300,0.3],[1779149160,1.22],[1779169500,0.27],[1779194220,1.96],[1779219300,0.34],[1779239160,1.16],[1779259080,0.36],[1779283980,1.88],[1779309420,0.38],[1779329460,1.12],[1779349080,0.45],[1779373920,1.78],[1779399480,0.41],[1779420180,1.12],[1779439680,0.54],[1779464040,1.68],[1779489300,0.43],[1779511020,1.17],[1779530700,0.6],[1779554220,1.59],[1779579000,0.43],[1779601500,1.25],[1779621660,0.63],[1779644160,1.5],[1779668220,0.42],[1779691500,1.36],[1779712260,0.63],[1779733800,1.43],[1779757200,0.39],[1779780780,1.46],[1779802440,0.6],[1779823020,1.37],[1779845820,0.37],[1779869700,1.56],[1779892140,0.57],[1779912060,1.31],[1779934260,0.35],[1779958380,1.64],[1779981300,0.53],[1780001040,1.27],[1780022580,0.34],[1780046880,1.7],[1780070400,0.49],[1780089840,1.23],[1780110840,0.33],[1780135260,1.74],[1780159200,0.47],[1780178580,1.2],[1780199100,0.34],[1780223760,1.75],[1780247940,0.45],[1780267320,1.18],[1780287360,0.35],[1780312320,1.75],[1780336680,0.46],[1780355940,1.15],[1780375800,0.38],[1780400880,1.73],[1780425480,0.47],[1780444680,1.13],[1780464420,0.41],[1780489560,1.7],[1780514280,0.49],[1780533480,1.11],[1780553100,0.45],[1780578360,1.66],[1780603200,0.51],[1780622580,1.1],[1780642080,0.5],[1780667220,1.62],[1780692300,0.51],[1780712100,1.1],[1780731600,0.56],[1780756380,1.57],[1780781580,0.5],[1780802220,1.12],[1780821600,0.62],[1780845780,1.53],[1780870860,0.46],[1780892700,1.19],[1780912320,0.65],[1780935540,1.48],[1780960200,0.41],[1780982940,1.3],[1781003340,0.65],[1781025420,1.44],[1781049420,0.36],[1781072760,1.44],[1781094360,0.61],[1781115300,1.4],[1781138640,0.3],[1781162280,1.6],[1781185020,0.53],[1781205180,1.36],[1781227800,0.24],[1781251740,1.75],[1781275320,0.44],[1781295060,1.32],[1781317020,0.2],[1781341140,1.89],[1781365320,0.36],[1781384940,1.28],[1781406300,0.17],[1781430600,1.98],[1781455140,0.29],[1781474760,1.26],[1781495700,0.16],[1781520060,2.04],[1781544780,0.25],[1781564520,1.24],[1781585100,0.18],[1781609520,2.04],[1781634420,0.25],[1781654280,1.22],[1781674620,0.23],[1781699040,1.99],[1781723940,0.27],[1781743980,1.21],[1781764200,0.3],[1781788500,1.9],[1781813400,0.31],[1781833800,1.2],[1781854020,0.39],[1781877900,1.78],[1781902800,0.35],[1781923860,1.21],[1781943960,0.5],[1781967360,1.64],[1781991960,0.39],[1782014220,1.24],[1782034320,0.6],[1782056760,1.49],[1782081120,0.41],[1782104580,1.3],[1782125100,0.67],[1782146400,1.36],[1782170220,0.42],[1782194760,1.37],[1782216240,0.7],[1782236160,1.25],[1782259320,0.42],[1782284400,1.46],[1782306960,0.67],[1782326040,1.18],[1782348300,0.41],[1782373560,1.54],[1782397020,0.61],[1782415800,1.13],[1782437280,0.39],[1782462480,1.61],[1782486360,0.55],[1782505320,1.12],[1782526020,0.38],[1782551100,1.67],[1782575340,0.49],[1782594420,1.12],[1782614700,0.36],[1782639720,1.71],[1782664140,0.45],[1782683280,1.13],[1782703320,0.34],[1782728280,1.74],[1782752700,0.42],[1782771960,1.14],[1782791940,0.33],[1782816840,1.75],[1782841200,0.41],[1782860520,1.16],[1782880560,0.32],[1782905400,1.75],[1782929700,0.41],[1782949140,1.16],[1782969300,0.34],[1782993900,1.73],[1783018260,0.4],[1783037820,1.17],[1783058040,0.37],[1783082460,1.7],[1783106820,0.4],[1783126800,1.18],[1783146960,0.42],[1783170960,1.66],[1783195440,0.4],[1783215900,1.2],[1783236180,0.48],[1783259700,1.59],[1783284180,0.39],[1783305540,1.23],[1783325760,0.55],[1783348620,1.5],[1783373100,0.37],[1783395600,1.28],[1783416060,0.61],[1783438080,1.4],[1783462320,0.36],[1783485960,1.37],[1783507200,0.64],[1783528200,1.3],[1783551780,0.34],[1783576320,1.48],[1783598880,0.62],[1783618860,1.22],[1783641600,0.31],[1783666440,1.62],[1783690200,0.54],[1783709520,1.17],[1783731480,0.27],[1783756320,1.76],[1783780860,0.43],[1783800000,1.16],[1783821300,0.22],[1783846020,1.88],[1783870740,0.32],[1783890180,1.18],[1783911060,0.17],[1783935600,1.97],[1783960260,0.24],[1783980000,1.22],[1784000700,0.13],[1784025000,2.02],[1784049600,0.2],[1784069520,1.25],[1784090280,0.12],[1784114280,2.01],[1784138700,0.19],[1784158920,1.28],[1784179680,0.16],[1784203440,1.95],[1784227740,0.21],[1784248200,1.29],[1784269020,0.23],[1784292420,1.84],[1784316600,0.25],[1784337540,1.3],[1784358360,0.34],[1784381400,1.69],[1784405400,0.3],[1784427060,1.3],[1784447880,0.47],[1784470200,1.52],[1784494080,0.35],[1784516820,1.3],[1784537700,0.6],[1784559120,1.35],[1784582820,0.39],[1784607060,1.31],[1784628420,0.69],[1784648460,1.2],[1784671740,0.43],[1784697480,1.35],[1784720160,0.72],[1784738580,1.08],[1784761200,0.45],[1784787720,1.41],[1784811660,0.68],[1784829480,1.01],[1784850960,0.46],[1784877360,1.47],[1784901900,0.6],[1784920260,1.0],[1784940720,0.44],[1784966580,1.54],[1784991180,0.52],[1785010080,1.03],[1785030240,0.4],[1785055500,1.6],[1785079920,0.45],[1785099240,1.07],[1785119340,0.35],[1785144180,1.66],[1785168420,0.4],[1785187860,1.12],[1785208140,0.3],[1785232740,1.7],[1785256800,0.36],[1785276360,1.16],[1785296760,0.26],[1785321180,1.73],[1785345120,0.33],[1785364860,1.2],[1785385440,0.24],[1785409560,1.75],[1785433440,0.31],[1785453360,1.24],[1785474120,0.25],[1785497880,1.74],[1785521700,0.29],[1785542040,1.27],[1785562920,0.28],[1785586260,1.7],[1785610020,0.28],[1785630840,1.3],[1785651840,0.33],[1785674700,1.62],[1785698460,0.28],[1785719820,1.33],[1785740940,0.41],[1785763200,1.52],[1785786960,0.29],[1785809160,1.35],[1785830400,0.49],[1785852000,1.39],[1785875640,0.31],[1785898980,1.38],[1785920640,0.57],[1785941460,1.25],[1785964860,0.33],[1785989520,1.42],[1786012140,0.62],[1786032060,1.12],[1786054860,0.36],[1786080420,1.49],[1786104540,0.59],[1786123740,1.05],[1786145460,0.35],[1786171140,1.6],[1786196100,0.48],[1786215240,1.04],[1786236180,0.3],[1786261380,1.72],[1786286340,0.36],[1786305840,1.1],[1786326480,0.23],[1786351140,1.83],[1786375800,0.26],[1786395600,1.18],[1786416420,0.15],[1786440540,1.91],[1786464900,0.18],[1786485000,1.25],[1786506000,0.09],[1786529640,1.94],[1786553700,0.14],[1786574100,1.32],[1786595340,0.08],[1786618620,1.91],[1786642440,0.14],[1786663140,1.37],[1786684500,0.12],[1786707360,1.83],[1786731060,0.16],[1786752120,1.39],[1786773600,0.21],[1786796100,1.7],[1786819500,0.2],[1786841100,1.4],[1786862640,0.32],[1786884600,1.54],[1786907760,0.26],[1786930200,1.38],[1786951800,0.45],[1786973160,1.36],[1786995960,0.32],[1787019360,1.36],[1787041320,0.57],[1787061780,1.2],[1787084340,0.38],[1787109060,1.34],[1787131800,0.66],[1787150940,1.05],[1787173140,0.44],[1787199540,1.32],[1787223900,0.68],[1787241600,0.95],[1787262900,0.49],[1787290440,1.33],[1787315880,0.64],[1787333580,0.9],[1787353860,0.51],[1787380920,1.38],[1787406060,0.55],[1787424960,0.93],[1787444700,0.48],[1787470560,1.45],[1787495220,0.47],[1787514660,1.0],[1787534700,0.42],[1787559600,1.53],[1787583780,0.4],[1787603580,1.07],[1787623980,0.34],[1787648280,1.6],[1787672160,0.33],[1787692140,1.15],[1787712780,0.27],[1787736720,1.66],[1787760360,0.28],[1787780520,1.22],[1787801460,0.21],[1787825040,1.7],[1787848560,0.23],[1787868900,1.29],[1787890200,0.18],[1787913300,1.7],[1787936700,0.19],[1787957520,1.36],[1787978940,0.18],[1788001620,1.68],[1788024960,0.17],[1788046200,1.42],[1788067800,0.21],[1788090060,1.61],[1788113220,0.16],[1788135000,1.46],[1788156840,0.27],[1788178500,1.51],[1788201540,0.18],[1788223920,1.48],[1788246000,0.35],[1788267180,1.37],[1788290040,0.22],[1788313200,1.48],[1788335700,0.44],[1788356220,1.22],[1788378780,0.28],[1788403020,1.47],[1788426300,0.52],[1788446100,1.07],[1788468300,0.35],[1788493740,1.46],[1788518460,0.55],[1788537780,0.96],[1788559020,0.4],[1788585180,1.49],[1788610740,0.5],[1788630300,0.95],[1788650580,0.39],[1788676200,1.57],[1788701460,0.39],[1788721440,1.03],[1788741660,0.32],[1788766380,1.67],[1788791100,0.28],[1788811380,1.13],[1788831960,0.23],[1788855900,1.75],[1788880080,0.19],[1788900720,1.24],[1788921720,0.15],[1788945000,1.79],[1788968760,0.14],[1788989640,1.34],[1789011000,0.1],[1789033860,1.79],[1789057320,0.11],[1789078500,1.42],[1789100100,0.1],[1789122540,1.73],[1789145760,0.11],[1789167300,1.48],[1789189200,0.15],[1789211100,1.63],[1789234020,0.13],[1789256040,1.5],[1789278120,0.23],[1789299600,1.49],[1789322160,0.17],[1789344780,1.5],[1789367040,0.32],[1789388040,1.35],[1789410180,0.23],[1789433460,1.48],[1789456080,0.42],[1789476480,1.2],[1789498140,0.3],[1789522320,1.43],[1789545480,0.52],[1789565100,1.06],[1789586400,0.37],[1789611540,1.38],[1789635600,0.59],[1789654380,0.95],[1789675200,0.45],[1789701600,1.32],[1789727340,0.61],[1789745280,0.87],[1789765020,0.52],[1789792680,1.29],[1789818960,0.58],[1789837800,0.86],[1789856700,0.55],[1789883700,1.32],[1789909200,0.51],[1789929000,0.92],[1789948440,0.52],[1789973760,1.38],[1789998360,0.43],[1790018640,1.01],[1790038680,0.44],[1790062980,1.46],[1790086920,0.35],[1790107440,1.11],[1790128020,0.36],[1790151660,1.53],[1790175240,0.27],[1790196000,1.21],[1790217000,0.28],[1790240160,1.58],[1790263440,0.2],[1790284440,1.32],[1790305920,0.22],[1790328540,1.61],[1790351640,0.14],[1790372940,1.42],[1790394780,0.18],[1790416860,1.6],[1790439840,0.1],[1790461560,1.52],[1790483760,0.16],[1790505360,1.55],[1790528160,0.08],[1790550300,1.59],[1790572800,0.18],[1790594040,1.46],[1790616480,0.09],[1790639220,1.64],[1790662080,0.23],[1790682780,1.34],[1790704920,0.13],[1790728320,1.64],[1790751600,0.3],[1790771880,1.2],[1790793600,0.21],[1790817780,1.61],[1790841660,0.38],[1790861460,1.06],[1790882700,0.3],[1790907780,1.56],[1790932800,0.44],[1790952300,0.95],[1790972760,0.38],[1790998620,1.51],[1791024540,0.44],[1791044640,0.92],[1791064320,0.44],[1791089940,1.51],[1791115680,0.39],[1791136440,0.98],[1791156120,0.42],[1791180780,1.55],[1791205740,0.31],[1791226800,1.09],[1791247020,0.35],[1791270780,1.59],[1791295020,0.23],[1791316320,1.22],[1791337140,0.27],[1791360120,1.62],[1791383760,0.16],[1791405360,1.35],[1791426660,0.21],[1791449100,1.61],[1791472320,0.12],[1791494100,1.45],[1791515940,0.18],[1791537780,1.57],[1791560640,0.1],[1791582840,1.53],[1791604980,0.19],[1791626340,1.49],[1791648840,0.11],[1791671400,1.58],[1791693900,0.22],[1791714840,1.4],[1791736920,0.13],[1791759960,1.6],[1791782880,0.27],[1791803340,1.29],[1791824940,0.17],[1791848520,1.6],[1791871800,0.33],[1791891900,1.18],[1791912900,0.23],[1791937080,1.56],[1791960780,0.39],[1791980400,1.08],[1792000980,0.29],[1792025820,1.51],[1792050000,0.45],[1792069200,0.99],[1792089300,0.37],[1792114860,1.44],[1792139760,0.5],[1792158480,0.91],[1792178160,0.45],[1792204440,1.37],[1792230360,0.53],[1792249200,0.86],[1792267980,0.52],[1792294860,1.32],[1792321200,0.52],[1792341000,0.87],[1792359300,0.57],[1792385640,1.31],[1792411320,0.47],[1792432140,0.94],[1792451220,0.56],[1792475940,1.35],[1792500660,0.4],[1792521900,1.04],[1792541820,0.5],[1792565400,1.4],[1792589400,0.31],[1792610940,1.17],[1792631640,0.42],[1792654380,1.44],[1792677900,0.23],[1792699620,1.3],[1792721040,0.34],[1792743120,1.47],[1792766280,0.15],[1792788240,1.44],[1792810260,0.27],[1792831800,1.47],[1792854600,0.09],[1792876920,1.57],[1792899480,0.21],[1792920540,1.44],[1792943040,0.05],[1792965660,1.68],[1792988760,0.18],[1793009400,1.38],[1793031480,0.04],[1793054640,1.76],[1793078100,0.18],[1793098380,1.3],[1793120100,0.06],[1793143800,1.79],[1793167680,0.2],[1793187720,1.2],[1793208840,0.12],[1793233080,1.78],[1793257500,0.25],[1793277300,1.09],[1793297940,0.21],[1793322780,1.73],[1793347860,0.3],[1793367480,1.0],[1793387580,0.3],[1793412840,1.66],[1793438460,0.34],[1793458620,0.96],[1793478120,0.39],[1793503320,1.58],[1793529120,0.34],[1793550180,0.98],[1793569620,0.45],[1793594100,1.53],[1793619360,0.31],[1793641200,1.07],[1793661000,0.45],[1793684580,1.5],[1793709060,0.27],[1793731380,1.19],[1793751720,0.41],[1793774400,1.48],[1793798280,0.22],[1793820780,1.32],[1793841900,0.37],[1793863800,1.44],[1793887020,0.18],[1793909760,1.44],[1793931540,0.34],[1793952840,1.39],[1793975460,0.15],[1793998560,1.53],[1794020940,0.31],[1794041640,1.33],[1794063780,0.14],[1794087120,1.61],[1794110040,0.3],[1794130260,1.27],[1794151980,0.15],[1794175620,1.65],[1794199020,0.3],[1794218940,1.2],[1794240060,0.16],[1794264120,1.67],[1794287880,0.31],[1794307560,1.14],[1794328200,0.2],[1794352620,1.66],[1794376800,0.33],[1794396240,1.08],[1794416400,0.24],[1794441240,1.62],[1794465660,0.36],[1794484860,1.03],[1794504660,0.3],[1794529920,1.57],[1794554640,0.4],[1794573720,0.98],[1794593220,0.36],[1794618840,1.51],[1794643860,0.43],[1794662880,0.94],[1794682140,0.43],[1794708000,1.45],[1794733320,0.46],[1794752760,0.92],[1794771780,0.5],[1794797520,1.4],[1794823200,0.46],[1794843540,0.93],[1794862200,0.56],[1794887400,1.36],[1794912900,0.43],[1794934440,0.99],[1794953400,0.58],[1794977400,1.34],[1795002300,0.37],[1795024560,1.1],[1795044420,0.56],[1795067160,1.34],[1795091400,0.3],[1795114020,1.24],[1795134900,0.51],[1795156680,1.33],[1795180260,0.22],[1795203060,1.39],[1795224960,0.43],[1795245960,1.33],[1795268940,0.15],[1795292100,1.55],[1795314720,0.35],[1795335240,1.31],[1795357680,0.09],[1795381020,1.69],[1795404420,0.27],[1795424460,1.28],[1795446420,0.05],[1795470060,1.81],[1795493940,0.21],[1795513860,1.24],[1795535340,0.04],[1795559280,1.88],[1795583580,0.18],[1795603380,1.19],[1795624320,0.06],[1795648620,1.91],[1795673280,0.17],[1795693020,1.14],[1795713540,0.11],[1795738200,1.9],[1795763040,0.19],[1795782840,1.1],[1795803060,0.19],[1795827780,1.84],[1795852920,0.22],[1795872900,1.06],[1795892940,0.28],[1795917600,1.75],[1795942800,0.26],[1795963380,1.05],[1795983300,0.37],[1796007480,1.64],[1796032620,0.28],[1796054220,1.08],[1796074080,0.45],[1796097480,1.52],[1796122320,0.29],[1796145000,1.16],[1796165100,0.5],[1796187540,1.42],[1796211780,0.29],[1796235240,1.27],[1796256000,0.52],[1796277420,1.32],[1796301000,0.27],[1796324880,1.38],[1796346600,0.51],[1796367060,1.24],[1796389920,0.25],[1796414100,1.48],[1796436660,0.47],[1796456580,1.18],[1796478600,0.24],[1796502900,1.57],[1796526180,0.42],[1796545800,1.14],[1796567160,0.22],[1796591580,1.63],[1796615340,0.38],[1796634780,1.11],[1796655600,0.22],[1796680080,1.66],[1796704200,0.35],[1796723640,1.1],[1796743920,0.22],[1796768640,1.68],[1796793000,0.33],[1796812320,1.08],[1796832300,0.23],[1796857200,1.68],[1796881620,0.33],[1796900940,1.08],[1796920740,0.25],[1796945760,1.67],[1796970300,0.34],[1796989500,1.06],[1797009300,0.28],[1797034380,1.64],[1797058860,0.36],[1797078180,1.05],[1797097920,0.33],[1797123000,1.59],[1797147600,0.38],[1797167040,1.04],[1797186780,0.38],[1797211740,1.54],[1797236340,0.39],[1797256260,1.03],[1797276000,0.45],[1797300540,1.48],[1797325320,0.39],[1797346020,1.04],[1797365700,0.52],[1797389580,1.42],[1797414420,0.38],[1797436440,1.09],[1797456000,0.58],[1797478980,1.35],[1797503700,0.36],[1797526860,1.18],[1797546960,0.61],[1797568860,1.28],[1797593100,0.32],[1797616860,1.3],[1797638220,0.59],[1797658980,1.23],[1797682500,0.27],[1797706560,1.45],[1797729180,0.52],[1797749100,1.19],[1797771840,0.21],[1797796020,1.61],[1797819660,0.42],[1797839160,1.17],[1797861180,0.15],[1797885420,1.75],[1797909660,0.32],[1797929160,1.16],[1797950520,0.1],[1797974820,1.87],[1797999360,0.23],[1798019040,1.17],[1798039860,0.07],[1798064220,1.95],[1798088940,0.17],[1798108680,1.18],[1798129320,0.06],[1798153680,1.99],[1798178400,0.14],[1798198200,1.19],[1798218840,0.08],[1798243140,1.97],[1798267740,0.14],[1798287780,1.2],[1798308360,0.14],[1798332480,1.9],[1798357080,0.17],[1798377420,1.19],[1798398000,0.23],[1798421760,1.79],[1798446300,0.22],[1798467300,1.2],[1798487820,0.35],[1798511040,1.64],[1798535400,0.27],[1798557420,1.21],[1798578000,0.47],[1798600380,1.47],[1798624560,0.31],[1798648020,1.25],[1798668720,0.58],[1798689900,1.3],[1798713780,0.35]]; // Southport highs and lows, MSQ predictions: [unix seconds, metres above LAT] // named spots for direction labels, from data/landmarks.json
+// ---------- data built into the page ----------
+const DEFAULT_ZONES = {"zones":[{"id":"coomera_south_branch","name":"Coomera South Branch, Paradise Point to Sanctuary Cove","speed_kn":6,"min_length_m":6.5,"poly":[[153.377,-27.875],[153.405,-27.875],[153.405,-27.84],[153.377,-27.84]]},{"id":"coomera_foxwell_rail","name":"Coomera River, Foxwell Island to the rail bridge","speed_kn":6,"min_length_m":0,"poly":[[153.333,-27.88],[153.377,-27.88],[153.377,-27.86],[153.333,-27.86]]},{"id":"coomera_hope_foxwell","name":"Coomera River, Hope Island to Foxwell Island","speed_kn":6,"min_length_m":8.0,"poly":[[153.333,-27.86],[153.377,-27.86],[153.377,-27.84],[153.333,-27.84]]},{"id":"nerang_broadbeach_waters","name":"Nerang River near Broadbeach Waters and Bundall","speed_kn":6,"min_length_m":0,"poly":[[153.38,-28.05],[153.405,-28.05],[153.405,-28.019],[153.38,-28.019]]},{"id":"nerang_upstream_gc_hwy","name":"Nerang River upstream of the Gold Coast Highway bridge","speed_kn":6,"min_length_m":8.0,"poly":[[153.405,-28.03],[153.428,-28.03],[153.428,-27.985],[153.405,-27.985]]}]}; // default 6 knot zones (MSQ schedule, approximate polygons, [lon, lat])
+const MARKS = [{"name":"Chevron Island","lat":-27.99694,"lon":153.42},{"name":"Sundale Bridge","lat":-27.97449,"lon":153.41951},{"name":"Sovereign Island","lat":-27.87817,"lon":153.40317},{"name":"Paradise Point","lat":-27.88214,"lon":153.39538},{"name":"Hope Island","lat":-27.86894,"lon":153.37771},{"name":"Isle of Capri ramp","lat":-28.009693,"lon":153.425388},{"name":"Coomera River ramp","lat":-27.8776,"lon":153.3137}];         // named spots, from data/landmarks.json
+const WLABELS = [{"name":"NERANG RIVER","lat":-27.992,"lon":153.4167},{"name":"THE BROADWATER","lat":-27.925,"lon":153.4174},{"name":"COOMERA RIVER","lat":-27.8474,"lon":153.36},{"name":"COOMERA RIVER","lat":-27.8761,"lon":153.33}];     // river names written on the water, from data/water_labels.json
+const MSQB = [{"s":"p","lat":-27.876362,"lon":153.39199},{"s":"p","lat":-27.877517,"lon":153.387758},{"s":"p","lat":-27.877953,"lon":153.413838},{"s":"p","lat":-27.878005,"lon":153.400025},{"s":"p","lat":-27.876857,"lon":153.387386},{"s":"p","lat":-27.879308,"lon":153.399511},{"s":"p","lat":-27.884677,"lon":153.405108},{"s":"p","lat":-27.886116,"lon":153.41897},{"s":"p","lat":-27.887634,"lon":153.413384},{"s":"p","lat":-27.890469,"lon":153.401175},{"s":"p","lat":-27.888877,"lon":153.383397},{"s":"p","lat":-27.893073,"lon":153.415585},{"s":"p","lat":-27.894289,"lon":153.403686},{"s":"p","lat":-27.899296,"lon":153.419069},{"s":"p","lat":-27.899044,"lon":153.405338},{"s":"p","lat":-27.90546,"lon":153.418578},{"s":"p","lat":-27.908689,"lon":153.416125},{"s":"p","lat":-27.914279,"lon":153.410124},{"s":"p","lat":-27.919486,"lon":153.410315},{"s":"p","lat":-27.922115,"lon":153.414363},{"s":"p","lat":-27.922812,"lon":153.407769},{"s":"p","lat":-27.922397,"lon":153.40847},{"s":"p","lat":-27.924162,"lon":153.405428},{"s":"p","lat":-27.926509,"lon":153.402972},{"s":"p","lat":-27.928288,"lon":153.416976},{"s":"p","lat":-27.927811,"lon":153.403756},{"s":"s","lat":-27.878111,"lon":153.410367},{"s":"s","lat":-27.878005,"lon":153.400025},{"s":"s","lat":-27.88333,"lon":153.398135},{"s":"s","lat":-27.88394,"lon":153.40649},{"s":"s","lat":-27.885556,"lon":153.398271},{"s":"s","lat":-27.886399,"lon":153.41465},{"s":"s","lat":-27.887455,"lon":153.383361},{"s":"s","lat":-27.888024,"lon":153.399306},{"s":"s","lat":-27.888537,"lon":153.406184},{"s":"s","lat":-27.889406,"lon":153.400696},{"s":"s","lat":-27.890689,"lon":153.416023},{"s":"s","lat":-27.898328,"lon":153.406574},{"s":"s","lat":-27.901335,"lon":153.40773},{"s":"s","lat":-27.903135,"lon":153.420144},{"s":"s","lat":-27.905441,"lon":153.419871},{"s":"s","lat":-27.907772,"lon":153.419469},{"s":"s","lat":-27.910723,"lon":153.411386},{"s":"s","lat":-27.916297,"lon":153.414086},{"s":"s","lat":-27.921787,"lon":153.415419},{"s":"s","lat":-27.922457,"lon":153.410188},{"s":"s","lat":-27.92242,"lon":153.407895},{"s":"s","lat":-27.925959,"lon":153.404768},{"s":"s","lat":-27.926564,"lon":153.402641},{"s":"s","lat":-27.927506,"lon":153.418088},{"s":"p","lat":-27.830352,"lon":153.385734},{"s":"p","lat":-27.831128,"lon":153.383312},{"s":"p","lat":-27.831513,"lon":153.382321},{"s":"p","lat":-27.832944,"lon":153.387418},{"s":"p","lat":-27.842802,"lon":153.374922},{"s":"p","lat":-27.847301,"lon":153.354202},{"s":"p","lat":-27.848034,"lon":153.353418},{"s":"p","lat":-27.848767,"lon":153.366164},{"s":"p","lat":-27.85194,"lon":153.366659},{"s":"p","lat":-27.854834,"lon":153.376531},{"s":"p","lat":-27.855909,"lon":153.378756},{"s":"p","lat":-27.857512,"lon":153.38038},{"s":"p","lat":-27.859976,"lon":153.3485},{"s":"p","lat":-27.862609,"lon":153.342052},{"s":"p","lat":-27.871559,"lon":153.381413},{"s":"p","lat":-27.872129,"lon":153.380491},{"s":"p","lat":-27.873008,"lon":153.377926},{"s":"p","lat":-27.877647,"lon":153.387583},{"s":"p","lat":-27.876986,"lon":153.387212},{"s":"p","lat":-27.826984,"lon":153.373572},{"s":"p","lat":-27.827314,"lon":153.365772},{"s":"p","lat":-27.828671,"lon":153.364596},{"s":"p","lat":-27.831202,"lon":153.359932},{"s":"s","lat":-27.835877,"lon":153.381516},{"s":"s","lat":-27.846329,"lon":153.376193},{"s":"s","lat":-27.846641,"lon":153.354051},{"s":"s","lat":-27.847261,"lon":153.353608},{"s":"s","lat":-27.853333,"lon":153.370043},{"s":"s","lat":-27.854545,"lon":153.377596},{"s":"s","lat":-27.85546,"lon":153.369713},{"s":"s","lat":-27.860096,"lon":153.344056},{"s":"s","lat":-27.859587,"lon":153.348502},{"s":"s","lat":-27.859971,"lon":153.347716},{"s":"s","lat":-27.862761,"lon":153.341529},{"s":"s","lat":-27.863673,"lon":153.341949},{"s":"s","lat":-27.866069,"lon":153.382357},{"s":"s","lat":-27.871658,"lon":153.382139},{"s":"s","lat":-27.87205,"lon":153.378781},{"s":"s","lat":-27.874639,"lon":153.384013},{"s":"p","lat":-27.859936,"lon":153.315606},{"s":"p","lat":-27.86119,"lon":153.315369},{"s":"p","lat":-27.862721,"lon":153.342135},{"s":"p","lat":-27.87706,"lon":153.313718},{"s":"p","lat":-27.893333,"lon":153.342523},{"s":"s","lat":-27.860204,"lon":153.344141},{"s":"s","lat":-27.860042,"lon":153.315957},{"s":"s","lat":-27.861132,"lon":153.31578},{"s":"s","lat":-27.86132,"lon":153.314822},{"s":"s","lat":-27.862721,"lon":153.342135}];           // Coomera River beacons read off the MSQ Beacon to Beacon maps (about 10 to 20 m either way)
+const TIDES = [[1767212580,1.76],[1767237060,0.33],[1767256560,1.14],[1767277680,0.14],[1767302100,1.87],[1767326880,0.24],[1767346500,1.15],[1767367200,0.11],[1767391560,1.94],[1767416400,0.19],[1767436140,1.17],[1767456660,0.1],[1767480960,1.96],[1767505620,0.17],[1767525480,1.18],[1767546000,0.12],[1767570180,1.93],[1767594720,0.18],[1767614760,1.19],[1767635280,0.17],[1767659280,1.86],[1767683700,0.22],[1767703920,1.19],[1767724500,0.26],[1767748260,1.74],[1767772500,0.27],[1767793200,1.18],[1767813780,0.37],[1767837000,1.6],[1767861180,0.32],[1767882660,1.18],[1767903240,0.5],[1767925800,1.45],[1767949860,0.37],[1767972600,1.19],[1767993180,0.61],[1768014660,1.3],[1768038600,0.4],[1768063020,1.22],[1768084020,0.69],[1768104000,1.17],[1768127700,0.42],[1768153500,1.28],[1768175700,0.71],[1768194120,1.06],[1768217220,0.44],[1768243500,1.36],[1768267020,0.66],[1768285020,1.0],[1768306860,0.43],[1768332960,1.44],[1768357200,0.58],[1768375740,0.99],[1768396440,0.4],[1768422000,1.52],[1768446480,0.5],[1768465500,1.02],[1768485600,0.37],[1768510800,1.59],[1768535280,0.43],[1768554600,1.05],[1768574580,0.32],[1768599480,1.65],[1768623840,0.37],[1768643220,1.1],[1768663320,0.27],[1768688100,1.71],[1768712280,0.34],[1768731780,1.14],[1768752000,0.23],[1768776540,1.74],[1768800660,0.31],[1768820280,1.18],[1768840740,0.21],[1768865040,1.76],[1768889100,0.28],[1768908840,1.22],[1768929540,0.22],[1768953600,1.76],[1768977540,0.27],[1768997640,1.25],[1769018400,0.25],[1769042040,1.72],[1769066040,0.26],[1769086560,1.28],[1769107500,0.32],[1769130600,1.65],[1769154540,0.27],[1769175780,1.3],[1769196720,0.4],[1769219340,1.54],[1769243160,0.28],[1769265300,1.33],[1769286600,0.49],[1769308320,1.41],[1769332080,0.31],[1769355540,1.36],[1769377140,0.58],[1769398080,1.26],[1769421540,0.34],[1769446320,1.42],[1769469000,0.62],[1769488920,1.13],[1769511600,0.36],[1769537220,1.51],[1769561400,0.57],[1769580480,1.05],[1769602260,0.35],[1769627700,1.63],[1769652720,0.47],[1769671920,1.06],[1769692740,0.3],[1769717700,1.75],[1769742720,0.35],[1769762400,1.11],[1769782920,0.23],[1769807340,1.84],[1769832000,0.27],[1769851980,1.18],[1769872560,0.17],[1769896620,1.9],[1769921040,0.21],[1769941140,1.25],[1769961960,0.13],[1769985720,1.92],[1770009840,0.19],[1770030120,1.3],[1770051120,0.13],[1770074520,1.88],[1770098400,0.2],[1770119040,1.33],[1770140040,0.19],[1770163200,1.8],[1770186900,0.23],[1770207780,1.35],[1770228960,0.28],[1770251760,1.68],[1770275220,0.28],[1770296580,1.35],[1770317880,0.39],[1770340140,1.54],[1770363360,0.32],[1770385500,1.34],[1770406920,0.51],[1770428580,1.39],[1770451440,0.37],[1770474600,1.32],[1770496260,0.62],[1770517020,1.24],[1770539760,0.43],[1770564300,1.3],[1770586620,0.7],[1770606060,1.1],[1770628500,0.48],[1770654960,1.3],[1770678840,0.74],[1770696420,0.99],[1770718320,0.53],[1770746040,1.33],[1770771180,0.69],[1770788520,0.93],[1770809220,0.55],[1770836400,1.4],[1770861600,0.61],[1770880320,0.96],[1770900060,0.52],[1770925980,1.48],[1770950760,0.52],[1770970200,1.02],[1770990000,0.46],[1771015020,1.57],[1771039380,0.45],[1771059120,1.09],[1771079280,0.37],[1771103700,1.65],[1771127820,0.38],[1771147680,1.17],[1771168140,0.3],[1771192200,1.72],[1771216080,0.32],[1771236060,1.25],[1771256880,0.23],[1771280640,1.77],[1771304340,0.27],[1771324560,1.33],[1771345680,0.2],[1771369080,1.79],[1771392600,0.23],[1771413240,1.4],[1771434540,0.2],[1771457460,1.77],[1771480980,0.2],[1771501980,1.46],[1771523460,0.23],[1771546020,1.71],[1771569300,0.2],[1771590840,1.5],[1771612620,0.3],[1771634640,1.6],[1771657740,0.23],[1771679880,1.52],[1771701960,0.4],[1771723380,1.45],[1771746240,0.28],[1771769340,1.52],[1771791840,0.51],[1771812540,1.28],[1771835040,0.35],[1771859460,1.51],[1771882800,0.6],[1771902600,1.12],[1771924620,0.42],[1771950540,1.5],[1771975380,0.62],[1771994460,1.01],[1772015580,0.48],[1772041980,1.55],[1772067600,0.55],[1772087040,1.0],[1772107200,0.47],[1772132880,1.63],[1772158140,0.45],[1772178180,1.08],[1772198280,0.4],[1772222880,1.72],[1772247540,0.35],[1772267940,1.18],[1772288400,0.31],[1772312220,1.79],[1772336400,0.28],[1772357040,1.28],[1772377920,0.23],[1772401200,1.83],[1772424960,0.24],[1772445840,1.37],[1772467020,0.2],[1772489880,1.82],[1772513400,0.22],[1772534520,1.44],[1772555880,0.21],[1772578500,1.76],[1772601720,0.23],[1772623080,1.49],[1772644680,0.26],[1772666940,1.67],[1772689860,0.25],[1772711640,1.51],[1772733480,0.33],[1772755200,1.56],[1772777820,0.29],[1772800140,1.51],[1772822220,0.42],[1772843460,1.43],[1772865720,0.33],[1772888640,1.5],[1772911080,0.52],[1772931780,1.29],[1772953620,0.39],[1772977440,1.47],[1773000240,0.61],[1773020220,1.16],[1773041700,0.45],[1773066600,1.42],[1773090240,0.68],[1773109260,1.05],[1773130380,0.53],[1773156600,1.37],[1773181980,0.72],[1773199740,0.96],[1773219960,0.6],[1773247980,1.35],[1773274320,0.69],[1773292380,0.92],[1773311460,0.64],[1773339240,1.39],[1773364860,0.62],[1773384300,0.97],[1773403500,0.61],[1773429300,1.46],[1773454080,0.54],[1773474120,1.06],[1773493980,0.53],[1773518460,1.56],[1773542700,0.45],[1773562980,1.17],[1773583440,0.43],[1773607200,1.64],[1773630960,0.37],[1773651600,1.28],[1773672480,0.34],[1773695700,1.71],[1773719280,0.29],[1773740100,1.4],[1773761400,0.27],[1773784200,1.75],[1773807540,0.22],[1773828720,1.51],[1773850440,0.23],[1773872760,1.75],[1773895860,0.18],[1773917400,1.61],[1773939480,0.22],[1773961320,1.69],[1773984240,0.16],[1774006200,1.69],[1774028640,0.25],[1774050060,1.6],[1774072680,0.18],[1774095240,1.73],[1774117920,0.32],[1774138980,1.46],[1774161120,0.23],[1774184400,1.73],[1774207680,0.41],[1774228080,1.3],[1774249800,0.32],[1774273920,1.69],[1774297980,0.5],[1774317780,1.15],[1774338900,0.42],[1774364160,1.63],[1774389540,0.57],[1774408920,1.03],[1774429020,0.51],[1774455300,1.58],[1774481400,0.56],[1774501380,1.0],[1774520880,0.56],[1774546800,1.59],[1774572480,0.5],[1774593120,1.06],[1774612800,0.54],[1774637520,1.63],[1774662360,0.43],[1774683420,1.18],[1774703640,0.46],[1774727280,1.68],[1774751400,0.36],[1774772700,1.3],[1774793460,0.39],[1774816380,1.7],[1774840020,0.31],[1774861560,1.41],[1774882800,0.33],[1774905180,1.69],[1774928400,0.27],[1774950180,1.5],[1774971780,0.31],[1774993680,1.65],[1775016660,0.26],[1775038680,1.57],[1775060580,0.32],[1775082120,1.59],[1775104680,0.26],[1775127120,1.62],[1775149320,0.36],[1775170500,1.5],[1775192640,0.28],[1775215500,1.65],[1775238120,0.4],[1775258880,1.4],[1775280540,0.31],[1775303880,1.65],[1775326800,0.46],[1775347200,1.3],[1775368440,0.36],[1775392320,1.63],[1775415720,0.52],[1775435640,1.2],[1775456400,0.41],[1775480940,1.58],[1775504880,0.58],[1775524260,1.1],[1775544660,0.48],[1775569920,1.52],[1775594700,0.64],[1775613480,1.02],[1775633400,0.56],[1775659560,1.45],[1775685540,0.67],[1775703900,0.97],[1775723040,0.63],[1775750280,1.41],[1775776680,0.65],[1775796000,0.96],[1775814300,0.68],[1775841300,1.42],[1775867040,0.6],[1775887320,1.03],[1775906400,0.66],[1775931600,1.47],[1775956440,0.52],[1775977200,1.13],[1775997180,0.59],[1776021060,1.54],[1776045180,0.43],[1776066300,1.26],[1776087060,0.5],[1776110040,1.61],[1776133740,0.34],[1776155160,1.41],[1776176520,0.41],[1776198780,1.65],[1776222120,0.26],[1776243900,1.55],[1776265860,0.34],[1776287580,1.65],[1776310560,0.19],[1776332700,1.69],[1776355140,0.29],[1776376380,1.62],[1776399060,0.15],[1776421560,1.8],[1776444420,0.27],[1776465300,1.54],[1776487560,0.15],[1776510600,1.88],[1776533940,0.28],[1776554460,1.44],[1776576240,0.19],[1776599820,1.9],[1776623580,0.33],[1776643860,1.31],[1776664980,0.26],[1776689160,1.88],[1776713640,0.39],[1776733560,1.19],[1776754020,0.36],[1776778980,1.81],[1776804300,0.46],[1776824040,1.09],[1776843720,0.46],[1776869220,1.72],[1776895200,0.49],[1776915300,1.05],[1776934500,0.55],[1776960060,1.65],[1776985980,0.49],[1777006920,1.08],[1777026300,0.59],[1777050960,1.61],[1777076100,0.46],[1777097760,1.17],[1777117620,0.58],[1777141260,1.6],[1777165680,0.42],[1777187700,1.28],[1777208220,0.54],[1777230900,1.58],[1777254600,0.37],[1777276920,1.4],[1777298040,0.49],[1777320000,1.55],[1777343160,0.34],[1777365780,1.51],[1777387440,0.46],[1777408680,1.51],[1777431480,0.31],[1777454280,1.6],[1777476480,0.44],[1777497300,1.46],[1777519620,0.3],[1777542720,1.67],[1777565340,0.43],[1777585800,1.4],[1777607640,0.3],[1777631100,1.71],[1777654140,0.44],[1777674360,1.33],[1777695600,0.31],[1777719480,1.73],[1777743000,0.45],[1777762800,1.27],[1777783620,0.34],[1777807860,1.73],[1777831740,0.47],[1777851420,1.2],[1777871700,0.38],[1777896420,1.7],[1777920660,0.51],[1777940040,1.14],[1777959960,0.43],[1777985100,1.65],[1778009760,0.55],[1778028900,1.09],[1778048520,0.49],[1778074020,1.6],[1778099220,0.58],[1778118120,1.04],[1778137440,0.56],[1778163300,1.54],[1778189100,0.6],[1778208240,1.02],[1778227080,0.62],[1778253240,1.5],[1778279100,0.59],[1778299200,1.03],[1778317800,0.67],[1778343420,1.48],[1778368920,0.55],[1778390040,1.1],[1778409180,0.67],[1778433480,1.49],[1778458320,0.48],[1778480100,1.22],[1778500140,0.64],[1778523240,1.51],[1778547300,0.39],[1778569500,1.36],[1778590620,0.57],[1778612520,1.53],[1778636100,0.31],[1778658660,1.52],[1778680620,0.49],[1778701800,1.52],[1778724900,0.24],[1778747700,1.68],[1778770380,0.41],[1778791020,1.49],[1778813580,0.18],[1778836740,1.83],[1778860020,0.34],[1778880360,1.44],[1778902380,0.16],[1778925900,1.94],[1778949720,0.3],[1778969760,1.37],[1778991300,0.16],[1779015180,2.0],[1779039420,0.29],[1779059400,1.3],[1779080340,0.2],[1779104640,2.01],[1779129300,0.3],[1779149160,1.22],[1779169500,0.27],[1779194220,1.96],[1779219300,0.34],[1779239160,1.16],[1779259080,0.36],[1779283980,1.88],[1779309420,0.38],[1779329460,1.12],[1779349080,0.45],[1779373920,1.78],[1779399480,0.41],[1779420180,1.12],[1779439680,0.54],[1779464040,1.68],[1779489300,0.43],[1779511020,1.17],[1779530700,0.6],[1779554220,1.59],[1779579000,0.43],[1779601500,1.25],[1779621660,0.63],[1779644160,1.5],[1779668220,0.42],[1779691500,1.36],[1779712260,0.63],[1779733800,1.43],[1779757200,0.39],[1779780780,1.46],[1779802440,0.6],[1779823020,1.37],[1779845820,0.37],[1779869700,1.56],[1779892140,0.57],[1779912060,1.31],[1779934260,0.35],[1779958380,1.64],[1779981300,0.53],[1780001040,1.27],[1780022580,0.34],[1780046880,1.7],[1780070400,0.49],[1780089840,1.23],[1780110840,0.33],[1780135260,1.74],[1780159200,0.47],[1780178580,1.2],[1780199100,0.34],[1780223760,1.75],[1780247940,0.45],[1780267320,1.18],[1780287360,0.35],[1780312320,1.75],[1780336680,0.46],[1780355940,1.15],[1780375800,0.38],[1780400880,1.73],[1780425480,0.47],[1780444680,1.13],[1780464420,0.41],[1780489560,1.7],[1780514280,0.49],[1780533480,1.11],[1780553100,0.45],[1780578360,1.66],[1780603200,0.51],[1780622580,1.1],[1780642080,0.5],[1780667220,1.62],[1780692300,0.51],[1780712100,1.1],[1780731600,0.56],[1780756380,1.57],[1780781580,0.5],[1780802220,1.12],[1780821600,0.62],[1780845780,1.53],[1780870860,0.46],[1780892700,1.19],[1780912320,0.65],[1780935540,1.48],[1780960200,0.41],[1780982940,1.3],[1781003340,0.65],[1781025420,1.44],[1781049420,0.36],[1781072760,1.44],[1781094360,0.61],[1781115300,1.4],[1781138640,0.3],[1781162280,1.6],[1781185020,0.53],[1781205180,1.36],[1781227800,0.24],[1781251740,1.75],[1781275320,0.44],[1781295060,1.32],[1781317020,0.2],[1781341140,1.89],[1781365320,0.36],[1781384940,1.28],[1781406300,0.17],[1781430600,1.98],[1781455140,0.29],[1781474760,1.26],[1781495700,0.16],[1781520060,2.04],[1781544780,0.25],[1781564520,1.24],[1781585100,0.18],[1781609520,2.04],[1781634420,0.25],[1781654280,1.22],[1781674620,0.23],[1781699040,1.99],[1781723940,0.27],[1781743980,1.21],[1781764200,0.3],[1781788500,1.9],[1781813400,0.31],[1781833800,1.2],[1781854020,0.39],[1781877900,1.78],[1781902800,0.35],[1781923860,1.21],[1781943960,0.5],[1781967360,1.64],[1781991960,0.39],[1782014220,1.24],[1782034320,0.6],[1782056760,1.49],[1782081120,0.41],[1782104580,1.3],[1782125100,0.67],[1782146400,1.36],[1782170220,0.42],[1782194760,1.37],[1782216240,0.7],[1782236160,1.25],[1782259320,0.42],[1782284400,1.46],[1782306960,0.67],[1782326040,1.18],[1782348300,0.41],[1782373560,1.54],[1782397020,0.61],[1782415800,1.13],[1782437280,0.39],[1782462480,1.61],[1782486360,0.55],[1782505320,1.12],[1782526020,0.38],[1782551100,1.67],[1782575340,0.49],[1782594420,1.12],[1782614700,0.36],[1782639720,1.71],[1782664140,0.45],[1782683280,1.13],[1782703320,0.34],[1782728280,1.74],[1782752700,0.42],[1782771960,1.14],[1782791940,0.33],[1782816840,1.75],[1782841200,0.41],[1782860520,1.16],[1782880560,0.32],[1782905400,1.75],[1782929700,0.41],[1782949140,1.16],[1782969300,0.34],[1782993900,1.73],[1783018260,0.4],[1783037820,1.17],[1783058040,0.37],[1783082460,1.7],[1783106820,0.4],[1783126800,1.18],[1783146960,0.42],[1783170960,1.66],[1783195440,0.4],[1783215900,1.2],[1783236180,0.48],[1783259700,1.59],[1783284180,0.39],[1783305540,1.23],[1783325760,0.55],[1783348620,1.5],[1783373100,0.37],[1783395600,1.28],[1783416060,0.61],[1783438080,1.4],[1783462320,0.36],[1783485960,1.37],[1783507200,0.64],[1783528200,1.3],[1783551780,0.34],[1783576320,1.48],[1783598880,0.62],[1783618860,1.22],[1783641600,0.31],[1783666440,1.62],[1783690200,0.54],[1783709520,1.17],[1783731480,0.27],[1783756320,1.76],[1783780860,0.43],[1783800000,1.16],[1783821300,0.22],[1783846020,1.88],[1783870740,0.32],[1783890180,1.18],[1783911060,0.17],[1783935600,1.97],[1783960260,0.24],[1783980000,1.22],[1784000700,0.13],[1784025000,2.02],[1784049600,0.2],[1784069520,1.25],[1784090280,0.12],[1784114280,2.01],[1784138700,0.19],[1784158920,1.28],[1784179680,0.16],[1784203440,1.95],[1784227740,0.21],[1784248200,1.29],[1784269020,0.23],[1784292420,1.84],[1784316600,0.25],[1784337540,1.3],[1784358360,0.34],[1784381400,1.69],[1784405400,0.3],[1784427060,1.3],[1784447880,0.47],[1784470200,1.52],[1784494080,0.35],[1784516820,1.3],[1784537700,0.6],[1784559120,1.35],[1784582820,0.39],[1784607060,1.31],[1784628420,0.69],[1784648460,1.2],[1784671740,0.43],[1784697480,1.35],[1784720160,0.72],[1784738580,1.08],[1784761200,0.45],[1784787720,1.41],[1784811660,0.68],[1784829480,1.01],[1784850960,0.46],[1784877360,1.47],[1784901900,0.6],[1784920260,1.0],[1784940720,0.44],[1784966580,1.54],[1784991180,0.52],[1785010080,1.03],[1785030240,0.4],[1785055500,1.6],[1785079920,0.45],[1785099240,1.07],[1785119340,0.35],[1785144180,1.66],[1785168420,0.4],[1785187860,1.12],[1785208140,0.3],[1785232740,1.7],[1785256800,0.36],[1785276360,1.16],[1785296760,0.26],[1785321180,1.73],[1785345120,0.33],[1785364860,1.2],[1785385440,0.24],[1785409560,1.75],[1785433440,0.31],[1785453360,1.24],[1785474120,0.25],[1785497880,1.74],[1785521700,0.29],[1785542040,1.27],[1785562920,0.28],[1785586260,1.7],[1785610020,0.28],[1785630840,1.3],[1785651840,0.33],[1785674700,1.62],[1785698460,0.28],[1785719820,1.33],[1785740940,0.41],[1785763200,1.52],[1785786960,0.29],[1785809160,1.35],[1785830400,0.49],[1785852000,1.39],[1785875640,0.31],[1785898980,1.38],[1785920640,0.57],[1785941460,1.25],[1785964860,0.33],[1785989520,1.42],[1786012140,0.62],[1786032060,1.12],[1786054860,0.36],[1786080420,1.49],[1786104540,0.59],[1786123740,1.05],[1786145460,0.35],[1786171140,1.6],[1786196100,0.48],[1786215240,1.04],[1786236180,0.3],[1786261380,1.72],[1786286340,0.36],[1786305840,1.1],[1786326480,0.23],[1786351140,1.83],[1786375800,0.26],[1786395600,1.18],[1786416420,0.15],[1786440540,1.91],[1786464900,0.18],[1786485000,1.25],[1786506000,0.09],[1786529640,1.94],[1786553700,0.14],[1786574100,1.32],[1786595340,0.08],[1786618620,1.91],[1786642440,0.14],[1786663140,1.37],[1786684500,0.12],[1786707360,1.83],[1786731060,0.16],[1786752120,1.39],[1786773600,0.21],[1786796100,1.7],[1786819500,0.2],[1786841100,1.4],[1786862640,0.32],[1786884600,1.54],[1786907760,0.26],[1786930200,1.38],[1786951800,0.45],[1786973160,1.36],[1786995960,0.32],[1787019360,1.36],[1787041320,0.57],[1787061780,1.2],[1787084340,0.38],[1787109060,1.34],[1787131800,0.66],[1787150940,1.05],[1787173140,0.44],[1787199540,1.32],[1787223900,0.68],[1787241600,0.95],[1787262900,0.49],[1787290440,1.33],[1787315880,0.64],[1787333580,0.9],[1787353860,0.51],[1787380920,1.38],[1787406060,0.55],[1787424960,0.93],[1787444700,0.48],[1787470560,1.45],[1787495220,0.47],[1787514660,1.0],[1787534700,0.42],[1787559600,1.53],[1787583780,0.4],[1787603580,1.07],[1787623980,0.34],[1787648280,1.6],[1787672160,0.33],[1787692140,1.15],[1787712780,0.27],[1787736720,1.66],[1787760360,0.28],[1787780520,1.22],[1787801460,0.21],[1787825040,1.7],[1787848560,0.23],[1787868900,1.29],[1787890200,0.18],[1787913300,1.7],[1787936700,0.19],[1787957520,1.36],[1787978940,0.18],[1788001620,1.68],[1788024960,0.17],[1788046200,1.42],[1788067800,0.21],[1788090060,1.61],[1788113220,0.16],[1788135000,1.46],[1788156840,0.27],[1788178500,1.51],[1788201540,0.18],[1788223920,1.48],[1788246000,0.35],[1788267180,1.37],[1788290040,0.22],[1788313200,1.48],[1788335700,0.44],[1788356220,1.22],[1788378780,0.28],[1788403020,1.47],[1788426300,0.52],[1788446100,1.07],[1788468300,0.35],[1788493740,1.46],[1788518460,0.55],[1788537780,0.96],[1788559020,0.4],[1788585180,1.49],[1788610740,0.5],[1788630300,0.95],[1788650580,0.39],[1788676200,1.57],[1788701460,0.39],[1788721440,1.03],[1788741660,0.32],[1788766380,1.67],[1788791100,0.28],[1788811380,1.13],[1788831960,0.23],[1788855900,1.75],[1788880080,0.19],[1788900720,1.24],[1788921720,0.15],[1788945000,1.79],[1788968760,0.14],[1788989640,1.34],[1789011000,0.1],[1789033860,1.79],[1789057320,0.11],[1789078500,1.42],[1789100100,0.1],[1789122540,1.73],[1789145760,0.11],[1789167300,1.48],[1789189200,0.15],[1789211100,1.63],[1789234020,0.13],[1789256040,1.5],[1789278120,0.23],[1789299600,1.49],[1789322160,0.17],[1789344780,1.5],[1789367040,0.32],[1789388040,1.35],[1789410180,0.23],[1789433460,1.48],[1789456080,0.42],[1789476480,1.2],[1789498140,0.3],[1789522320,1.43],[1789545480,0.52],[1789565100,1.06],[1789586400,0.37],[1789611540,1.38],[1789635600,0.59],[1789654380,0.95],[1789675200,0.45],[1789701600,1.32],[1789727340,0.61],[1789745280,0.87],[1789765020,0.52],[1789792680,1.29],[1789818960,0.58],[1789837800,0.86],[1789856700,0.55],[1789883700,1.32],[1789909200,0.51],[1789929000,0.92],[1789948440,0.52],[1789973760,1.38],[1789998360,0.43],[1790018640,1.01],[1790038680,0.44],[1790062980,1.46],[1790086920,0.35],[1790107440,1.11],[1790128020,0.36],[1790151660,1.53],[1790175240,0.27],[1790196000,1.21],[1790217000,0.28],[1790240160,1.58],[1790263440,0.2],[1790284440,1.32],[1790305920,0.22],[1790328540,1.61],[1790351640,0.14],[1790372940,1.42],[1790394780,0.18],[1790416860,1.6],[1790439840,0.1],[1790461560,1.52],[1790483760,0.16],[1790505360,1.55],[1790528160,0.08],[1790550300,1.59],[1790572800,0.18],[1790594040,1.46],[1790616480,0.09],[1790639220,1.64],[1790662080,0.23],[1790682780,1.34],[1790704920,0.13],[1790728320,1.64],[1790751600,0.3],[1790771880,1.2],[1790793600,0.21],[1790817780,1.61],[1790841660,0.38],[1790861460,1.06],[1790882700,0.3],[1790907780,1.56],[1790932800,0.44],[1790952300,0.95],[1790972760,0.38],[1790998620,1.51],[1791024540,0.44],[1791044640,0.92],[1791064320,0.44],[1791089940,1.51],[1791115680,0.39],[1791136440,0.98],[1791156120,0.42],[1791180780,1.55],[1791205740,0.31],[1791226800,1.09],[1791247020,0.35],[1791270780,1.59],[1791295020,0.23],[1791316320,1.22],[1791337140,0.27],[1791360120,1.62],[1791383760,0.16],[1791405360,1.35],[1791426660,0.21],[1791449100,1.61],[1791472320,0.12],[1791494100,1.45],[1791515940,0.18],[1791537780,1.57],[1791560640,0.1],[1791582840,1.53],[1791604980,0.19],[1791626340,1.49],[1791648840,0.11],[1791671400,1.58],[1791693900,0.22],[1791714840,1.4],[1791736920,0.13],[1791759960,1.6],[1791782880,0.27],[1791803340,1.29],[1791824940,0.17],[1791848520,1.6],[1791871800,0.33],[1791891900,1.18],[1791912900,0.23],[1791937080,1.56],[1791960780,0.39],[1791980400,1.08],[1792000980,0.29],[1792025820,1.51],[1792050000,0.45],[1792069200,0.99],[1792089300,0.37],[1792114860,1.44],[1792139760,0.5],[1792158480,0.91],[1792178160,0.45],[1792204440,1.37],[1792230360,0.53],[1792249200,0.86],[1792267980,0.52],[1792294860,1.32],[1792321200,0.52],[1792341000,0.87],[1792359300,0.57],[1792385640,1.31],[1792411320,0.47],[1792432140,0.94],[1792451220,0.56],[1792475940,1.35],[1792500660,0.4],[1792521900,1.04],[1792541820,0.5],[1792565400,1.4],[1792589400,0.31],[1792610940,1.17],[1792631640,0.42],[1792654380,1.44],[1792677900,0.23],[1792699620,1.3],[1792721040,0.34],[1792743120,1.47],[1792766280,0.15],[1792788240,1.44],[1792810260,0.27],[1792831800,1.47],[1792854600,0.09],[1792876920,1.57],[1792899480,0.21],[1792920540,1.44],[1792943040,0.05],[1792965660,1.68],[1792988760,0.18],[1793009400,1.38],[1793031480,0.04],[1793054640,1.76],[1793078100,0.18],[1793098380,1.3],[1793120100,0.06],[1793143800,1.79],[1793167680,0.2],[1793187720,1.2],[1793208840,0.12],[1793233080,1.78],[1793257500,0.25],[1793277300,1.09],[1793297940,0.21],[1793322780,1.73],[1793347860,0.3],[1793367480,1.0],[1793387580,0.3],[1793412840,1.66],[1793438460,0.34],[1793458620,0.96],[1793478120,0.39],[1793503320,1.58],[1793529120,0.34],[1793550180,0.98],[1793569620,0.45],[1793594100,1.53],[1793619360,0.31],[1793641200,1.07],[1793661000,0.45],[1793684580,1.5],[1793709060,0.27],[1793731380,1.19],[1793751720,0.41],[1793774400,1.48],[1793798280,0.22],[1793820780,1.32],[1793841900,0.37],[1793863800,1.44],[1793887020,0.18],[1793909760,1.44],[1793931540,0.34],[1793952840,1.39],[1793975460,0.15],[1793998560,1.53],[1794020940,0.31],[1794041640,1.33],[1794063780,0.14],[1794087120,1.61],[1794110040,0.3],[1794130260,1.27],[1794151980,0.15],[1794175620,1.65],[1794199020,0.3],[1794218940,1.2],[1794240060,0.16],[1794264120,1.67],[1794287880,0.31],[1794307560,1.14],[1794328200,0.2],[1794352620,1.66],[1794376800,0.33],[1794396240,1.08],[1794416400,0.24],[1794441240,1.62],[1794465660,0.36],[1794484860,1.03],[1794504660,0.3],[1794529920,1.57],[1794554640,0.4],[1794573720,0.98],[1794593220,0.36],[1794618840,1.51],[1794643860,0.43],[1794662880,0.94],[1794682140,0.43],[1794708000,1.45],[1794733320,0.46],[1794752760,0.92],[1794771780,0.5],[1794797520,1.4],[1794823200,0.46],[1794843540,0.93],[1794862200,0.56],[1794887400,1.36],[1794912900,0.43],[1794934440,0.99],[1794953400,0.58],[1794977400,1.34],[1795002300,0.37],[1795024560,1.1],[1795044420,0.56],[1795067160,1.34],[1795091400,0.3],[1795114020,1.24],[1795134900,0.51],[1795156680,1.33],[1795180260,0.22],[1795203060,1.39],[1795224960,0.43],[1795245960,1.33],[1795268940,0.15],[1795292100,1.55],[1795314720,0.35],[1795335240,1.31],[1795357680,0.09],[1795381020,1.69],[1795404420,0.27],[1795424460,1.28],[1795446420,0.05],[1795470060,1.81],[1795493940,0.21],[1795513860,1.24],[1795535340,0.04],[1795559280,1.88],[1795583580,0.18],[1795603380,1.19],[1795624320,0.06],[1795648620,1.91],[1795673280,0.17],[1795693020,1.14],[1795713540,0.11],[1795738200,1.9],[1795763040,0.19],[1795782840,1.1],[1795803060,0.19],[1795827780,1.84],[1795852920,0.22],[1795872900,1.06],[1795892940,0.28],[1795917600,1.75],[1795942800,0.26],[1795963380,1.05],[1795983300,0.37],[1796007480,1.64],[1796032620,0.28],[1796054220,1.08],[1796074080,0.45],[1796097480,1.52],[1796122320,0.29],[1796145000,1.16],[1796165100,0.5],[1796187540,1.42],[1796211780,0.29],[1796235240,1.27],[1796256000,0.52],[1796277420,1.32],[1796301000,0.27],[1796324880,1.38],[1796346600,0.51],[1796367060,1.24],[1796389920,0.25],[1796414100,1.48],[1796436660,0.47],[1796456580,1.18],[1796478600,0.24],[1796502900,1.57],[1796526180,0.42],[1796545800,1.14],[1796567160,0.22],[1796591580,1.63],[1796615340,0.38],[1796634780,1.11],[1796655600,0.22],[1796680080,1.66],[1796704200,0.35],[1796723640,1.1],[1796743920,0.22],[1796768640,1.68],[1796793000,0.33],[1796812320,1.08],[1796832300,0.23],[1796857200,1.68],[1796881620,0.33],[1796900940,1.08],[1796920740,0.25],[1796945760,1.67],[1796970300,0.34],[1796989500,1.06],[1797009300,0.28],[1797034380,1.64],[1797058860,0.36],[1797078180,1.05],[1797097920,0.33],[1797123000,1.59],[1797147600,0.38],[1797167040,1.04],[1797186780,0.38],[1797211740,1.54],[1797236340,0.39],[1797256260,1.03],[1797276000,0.45],[1797300540,1.48],[1797325320,0.39],[1797346020,1.04],[1797365700,0.52],[1797389580,1.42],[1797414420,0.38],[1797436440,1.09],[1797456000,0.58],[1797478980,1.35],[1797503700,0.36],[1797526860,1.18],[1797546960,0.61],[1797568860,1.28],[1797593100,0.32],[1797616860,1.3],[1797638220,0.59],[1797658980,1.23],[1797682500,0.27],[1797706560,1.45],[1797729180,0.52],[1797749100,1.19],[1797771840,0.21],[1797796020,1.61],[1797819660,0.42],[1797839160,1.17],[1797861180,0.15],[1797885420,1.75],[1797909660,0.32],[1797929160,1.16],[1797950520,0.1],[1797974820,1.87],[1797999360,0.23],[1798019040,1.17],[1798039860,0.07],[1798064220,1.95],[1798088940,0.17],[1798108680,1.18],[1798129320,0.06],[1798153680,1.99],[1798178400,0.14],[1798198200,1.19],[1798218840,0.08],[1798243140,1.97],[1798267740,0.14],[1798287780,1.2],[1798308360,0.14],[1798332480,1.9],[1798357080,0.17],[1798377420,1.19],[1798398000,0.23],[1798421760,1.79],[1798446300,0.22],[1798467300,1.2],[1798487820,0.35],[1798511040,1.64],[1798535400,0.27],[1798557420,1.21],[1798578000,0.47],[1798600380,1.47],[1798624560,0.31],[1798648020,1.25],[1798668720,0.58],[1798689900,1.3],[1798713780,0.35]];         // Southport (Gold Coast Seaway) highs and lows, MSQ predictions: [unix seconds, metres above LAT]
 const KN = 1.943844; // m/s to knots
 const STORE = "boatchart.v1";
+// Highest astronomical tide at the Gold Coast Seaway, metres above LAT (MSQ Semidiurnal Tidal Planes 2025)
+const HAT_SEAWAY = 1.97;
+const SEAWAY = [-27.9385, 153.4285]; // the Seaway entrance: the flood runs away from it
+const NM = 1852;
 
 // ---------- helpers ----------
 const $ = id => document.getElementById(id);
@@ -169,6 +214,13 @@ function dur(ms){const m=Math.round(ms/60000);return (m>=60?Math.floor(m/60)+" h
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 function load(){try{return JSON.parse(localStorage.getItem(STORE))||{};}catch(e){return {};}}
 function save(){try{localStorage.setItem(STORE,JSON.stringify(S));}catch(e){}}
+// flat metres around the Gold Coast, good to a few metres over the job area
+const XY = p => [p[1]*111320*Math.cos(-27.95*Math.PI/180), p[0]*110540];
+function project(p,a,b){ // point p onto segment a-b: {t, d, side} with side +1 when p is left of a-to-b
+  const P=XY(p),A=XY(a),B=XY(b),dx=B[0]-A[0],dy=B[1]-A[1],L2=dx*dx+dy*dy||1e-9;
+  const t=Math.max(0,Math.min(1,((P[0]-A[0])*dx+(P[1]-A[1])*dy)/L2)), qx=A[0]+t*dx, qy=A[1]+t*dy;
+  return {t, d:Math.hypot(P[0]-qx,P[1]-qy), side:Math.sign(dx*(P[1]-A[1])-dy*(P[0]-A[0]))}; }
+function chipDist(m){ return m<1000 ? (Math.max(10,Math.round(m/10)*10))+" m" : (m/NM).toFixed(1)+" nm"; }
 
 // ---------- state ----------
 let S = load(); // {job, track:[[t,lat,lon,sogKn,acc]], stamps:[{t,l,lat,lon,s}], started}
@@ -202,80 +254,113 @@ let S = load(); // {job, track:[[t,lat,lon,sogKn,acc]], stamps:[{t,l,lat,lon,s}]
 window.addEventListener("hashchange",()=>{ if(/[#&]j=/.test(location.hash)){ save(); location.reload(); } });
 const JOB = S.job || null;
 S.track = S.track||[]; S.stamps = S.stamps||[];
+const CX = (JOB && JOB.cx) || {}; // what the quoter fetched from the official chart along this job's route
 const ZONES = (JOB && JOB.zones) || DEFAULT_ZONES;
-const BOAT_LEN = (JOB && JOB.L) || 7.5;
+// boat settings, kept on this phone: height above the water, draft, safety margin, length (metres)
+let BOAT = {}; try{ BOAT=JSON.parse(localStorage.getItem(STORE+".boat"))||{}; }catch(e){}
+const num = v => (v===""||v==null||isNaN(+v)) ? null : +v;
+const MARGIN = num(BOAT.margin)!=null ? num(BOAT.margin) : 0.5;
+const BOAT_LEN = num(BOAT.len) || (JOB && JOB.L) || 7.5;
 
 // ---------- map ----------
 const map = L.map("map",{zoomControl:false,attributionControl:true,preferCanvas:true,rotate:true,bearing:0,touchRotate:false,shiftKeyRotate:false,rotateControl:false}).setView([-27.95,153.40],12);
 const esri = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-  {maxZoom:19,maxNativeZoom:18,attribution:"Esri World Imagery"});
+  {maxZoom:19,maxNativeZoom:18,attribution:"Esri World Imagery",className:"sat"});
 // shade depths for a small boat: 2 m safety contour (default is 30 m, which paints the whole Broadwater one blue)
-const AHO_DP = encodeURIComponent(JSON.stringify({ECDISParameters:{version:"11.5",DynamicParameters:{Parameter:[
-  {name:"SafetyContour",value:2},{name:"SafetyDepth",value:2},{name:"ShallowContour",value:1},{name:"DeepContour",value:5},{name:"TwoDepthShades",value:2}]}}}));
+const DP_BASE = [{name:"SafetyContour",value:2},{name:"SafetyDepth",value:2},{name:"ShallowContour",value:1},{name:"DeepContour",value:5},{name:"TwoDepthShades",value:2}];
+const AHO_DP = encodeURIComponent(JSON.stringify({ECDISParameters:{version:"11.5",DynamicParameters:{Parameter:DP_BASE}}}));
+const OVER_DP = encodeURIComponent(JSON.stringify({ECDISParameters:{version:"11.5",DynamicParameters:{Parameter:DP_BASE.concat([{name:"DisplayCategory",value:"1,4"}])}}}));
 const AHO = "https://services.hydro.gov.au/site1/rest/services/MCS/AHOENCOnline/MapServer/exts/MaritimeChartService/MapServer/export";
-const AhoLayer = L.TileLayer.extend({getTileUrl(c){
-  const s=256,nw=this._map.unproject([c.x*s,c.y*s],c.z),se=this._map.unproject([(c.x+1)*s,(c.y+1)*s],c.z),
+function ahoUrl(m,c,dp){ const s=256,nw=m.unproject([c.x*s,c.y*s],c.z),se=m.unproject([(c.x+1)*s,(c.y+1)*s],c.z),
   a=L.CRS.EPSG3857.project(nw),b=L.CRS.EPSG3857.project(se),r=L.Browser.retina?2:1;
-  return AHO+"?bbox="+[a.x,b.y,b.x,a.y].map(v=>v.toFixed(1)).join(",")+"&bboxSR=3857&imageSR=3857&size="+(s*r)+","+(s*r)+"&format=png32&transparent=true&dpi="+(96*r)+"&f=image&display_params="+AHO_DP;}});
+  return AHO+"?bbox="+[a.x,b.y,b.x,a.y].map(v=>v.toFixed(1)).join(",")+"&bboxSR=3857&imageSR=3857&size="+(s*r)+","+(s*r)+"&format=png32&transparent=true&dpi="+(96*r)+"&f=image&display_params="+dp; }
+const AhoLayer = L.TileLayer.extend({getTileUrl(c){ return ahoUrl(this._map,c,AHO_DP); }});
 const aho = new AhoLayer("",{maxZoom:19,attribution:"AHO ENC Online, not for navigation"});
 const seamark = L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png",{maxZoom:19,maxNativeZoom:18,attribution:"OpenSeaMap"});
 const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"OpenStreetMap"});
 const BASES = {"Satellite":esri,"Official chart (AHO)":aho,"Street map":osm};
-// the official chart laid over the satellite at half strength: depth shading, soundings, channel lines and beacons
-// land is cut out (made see-through) so the satellite shows through; water shading is kept faint,
-// soundings, channel lines and beacon symbols stay solid
+// the official chart over the satellite, recoloured (owner's pick, 7 Oct 2026): land one flat colour so the suburbs
+// disappear, water under 2 m at low tide a light blue wash, drying banks a paler, stronger blue, deep water left as the photo
+const PAL = {land:[58,62,58,235], shallow:[120,180,235,75], dry:[200,230,252,150]};
+const near3 = (r,g,b,R,G,B,t) => Math.abs(r-R)+Math.abs(g-G)+Math.abs(b-B)<t;
 const AhoOverlay = L.GridLayer.extend({createTile(c,done){
-  const t=document.createElement("canvas"), sz=this.getTileSize(); t.width=sz.x; t.height=sz.y;
+  const t=document.createElement("canvas"), sz=this.getTileSize(), k=L.Browser.retina?2:1; t.width=sz.x*k; t.height=sz.y*k; t.style.width=sz.x+"px"; t.style.height=sz.y+"px";
   const img=new Image(); img.crossOrigin="anonymous";
-  img.onload=()=>{ const g=t.getContext("2d"); g.drawImage(img,0,0,sz.x,sz.y);
-    try{ const d=g.getImageData(0,0,sz.x,sz.y), a=d.data;
-      for(let i=0;i<a.length;i+=4){ const r=a[i],gg=a[i+1],b=a[i+2];
-        if(Math.abs(r-206)+Math.abs(gg-197)+Math.abs(b-138)<40 || Math.abs(r-193)+Math.abs(gg-184)+Math.abs(b-129)<25) a[i+3]=0;      // land
-        else if(Math.abs(r-130)+Math.abs(gg-189)+Math.abs(b-255)<30) a[i+3]=110;                                                     // under 2 m at low tide
-        else if(Math.abs(r-221)+Math.abs(gg-241)+Math.abs(b-238)<25) a[i+3]=10;                                                      // over 2 m: the channels
-        else if(Math.abs(r-120)+Math.abs(gg-183)+Math.abs(b-150)<35) a[i+3]=150; }                                                   // drying banks
+  img.onload=()=>{ const g=t.getContext("2d"); g.drawImage(img,0,0,t.width,t.height);
+    try{ const d=g.getImageData(0,0,t.width,t.height), a=d.data;
+      for(let i=0;i<a.length;i+=4){ const r=a[i],gg=a[i+1],b=a[i+2]; let o=null;
+        if(near3(r,gg,b,206,197,138,40)||near3(r,gg,b,193,184,129,25)||near3(r,gg,b,154,147,103,25)) o=PAL.land;
+        else if(near3(r,gg,b,130,189,255,30)) o=PAL.shallow;
+        else if(near3(r,gg,b,120,183,150,35)) o=PAL.dry;
+        if(!o) a[i+3]=0; else { a[i]=o[0]; a[i+1]=o[1]; a[i+2]=o[2]; a[i+3]=o[3]; } }
       g.putImageData(d,0,0); }catch(e){}
     done(null,t); };
   img.onerror=()=>done(null,t);
-  img.src=AhoLayer.prototype.getTileUrl.call({_map:this._map},c);
+  img.src=ahoUrl(this._map,c,OVER_DP);
   return t; }});
 const ahoOver = new AhoOverlay({maxZoom:19,attribution:"AHO ENC Online, not for navigation"});
-const OVER = {"Depths and beacons (official chart over satellite)":ahoOver,"Beacons (OpenSeaMap)":seamark};
-let pref = {base:"Satellite",over:{"Depths and beacons (official chart over satellite)":true,"Beacons (OpenSeaMap)":true}};
-try{Object.assign(pref,JSON.parse(localStorage.getItem(STORE+".layers3"))||{});}catch(e){}
-BASES[pref.base] ? BASES[pref.base].addTo(map) : esri.addTo(map);
-for(const k in OVER) if(pref.over[k]) OVER[k].addTo(map);
+const flowLayer=L.layerGroup(), worksLayer=L.layerGroup(), omLayer=L.layerGroup(), beaconLayer=L.layerGroup(), nameLayer=L.layerGroup();
+const OV_DEPTH="Depths and land, soft colours (official chart)";
+const OVER = {[OV_DEPTH]:ahoOver, "Beacons":beaconLayer, "Cardinal and special marks":omLayer, "Walls, jetties, bridges, landmarks":worksLayer,
+  "Place names":nameLayer, "Tide flow arrows (estimated)":flowLayer, "Beacons (OpenSeaMap)":seamark};
+let pref = {base:"Satellite",over:{"Beacons (OpenSeaMap)":false}};
+try{const p=JSON.parse(localStorage.getItem(STORE+".layers4"))||{}; if(p.base) pref.base=p.base; Object.assign(pref.over,p.over||{});}catch(e){}
+(BASES[pref.base]||esri).addTo(map);
+const overOn = k => pref.over[k]!==false;
 L.control.scale({imperial:false,position:"bottomleft"}).addTo(map);
+if(overOn(OV_DEPTH) && pref.base!=="Official chart (AHO)") ahoOver.addTo(map);
+for(const k in OVER) if(k!==OV_DEPTH && overOn(k)) OVER[k].addTo(map);
 
 // zones
 const zoneLayer = L.layerGroup().addTo(map);
 for(const z of ZONES.zones||[]){
   const applies = BOAT_LEN >= (z.min_length_m||0);
-  L.polygon(z.poly.map(p=>[p[1],p[0]]),{color:applies?"#f59e0b":"#94a3b8",weight:2,fillOpacity:applies?.12:.04,dashArray:applies?null:"4 6"})
+  L.polygon(z.poly.map(p=>[p[1],p[0]]),{color:applies?"#f59e0b":"#94a3b8",weight:2,fillOpacity:applies?.10:.03,dashArray:applies?null:"4 6"})
    .bindTooltip(z.name+" - "+z.speed_kn+" kn"+(z.min_length_m?(" for boats "+z.min_length_m+" m and over"):" for all boats")).addTo(zoneLayer);
 }
 
-// route
+// ---------- tide ----------
+// Southport (Gold Coast Seaway) predictions, cosine between highs and lows.
+function seawayTide(s){
+  for(let i=0;i<TIDES.length-1;i++){ const [t0,h0]=TIDES[i],[t1,h1]=TIDES[i+1];
+    if(t0<=s && s<=t1){ const f=(s-t0)/(t1-t0); return {h:h0+(h1-h0)*(1-Math.cos(Math.PI*f))/2, rising:h1>h0, next:TIDES[i+1], i}; } }
+  return null; }
+// The tide where the boat is. North of about latitude -27.905 (Paradise Point, the northern Broadwater and the Coomera)
+// the tide is 1 hour after the Seaway and 0.87 of its height: MSQ, Port Procedures and Information for Shipping,
+// Southport, July 2025, section 3.6 (see ops/boat-chart-ux/research-hazards-features.md). Highest astronomical tide is
+// scaled by the same 0.87 there; a lower HAT gives a lower bridge clearance, so it errs on the safe side.
+const PP_LAT = -27.905;
+function tideAt(t, lat){
+  const pp = lat!=null && lat > PP_LAT, lag = pp?3600:0, k = pp?0.87:1;
+  const td = seawayTide(t/1000 - lag); if(!td) return null;
+  return {h:td.h*k, rising:td.rising, next:[td.next[0]+lag, td.next[1]*k], place:pp?"Paradise Point":"Seaway", hat:HAT_SEAWAY*k, k, lag}; }
+// Tide flowing in or out at the Seaway: flood from about 1.5 h after low water to 1.5 h after high water (slack about
+// 1.5 h after the turn, Griffith University Broadwater model study). Direction only; no published stream rates for the Broadwater.
+function flooding(t){ const td=seawayTide(t/1000-5400); return td ? td.rising : null; }
+
+// ---------- route ----------
 const routeLayer = L.layerGroup().addTo(map);
 let ROUTE = [], CUM = [], STOPS = [], LEGS = [], DIRS = [], LEGLINES = [];
 let shownLeg = -2;
+function chaikin(R){ for(let k=0;k<3;k++){ if(R.length<3) break; const o=[R[0]];
+  for(let i=0;i<R.length-1;i++){ const a=R[i],b=R[i+1]; o.push([.75*a[0]+.25*b[0],.75*a[1]+.25*b[1]],[.25*a[0]+.75*b[0],.25*a[1]+.75*b[1]]); }
+  o.push(R[R.length-1]); R=o; } return R; }
+// one smooth soft purple line for the leg you are on (owner: the white edge made it hard to read); the others faint grey.
+// The smoothing is for drawing only: distances and progress use the planned points.
 function showLeg(li){ if(li===shownLeg) return; shownLeg=li;
   LEGLINES.forEach((o,i)=>{ const on = li<0 || i===li;
-    o.line.setStyle({color:on?"#8b2be2":"#94a3b8", weight:on?5:3, opacity:on?1:.45}); o.edge.setStyle({opacity:on?.7:0});
-    if(on){ o.edge.bringToFront(); o.line.bringToFront(); } }); }
+    o.line.setStyle({color:on?"#c084fc":"#94a3b8", weight:on?5:3, opacity:on?.8:.4});
+    if(on) o.line.bringToFront(); }); }
+function shortName(n){ return n.replace(/Isle of Capri boat ramp/i,"Capri ramp").replace(/ River boat ramp.*$/i," ramp").replace(/ boat ramp/i," ramp").replace(/\s*\(.*\)/,""); }
 if(JOB){
-  const colours = {run:"#8b2be2",tow:"#8b2be2"}; // purple route, like a plotter
   for(const lg of JOB.legs||[]){
     const pts = decodePoly(lg.p); const a0 = Math.max(0, ROUTE.length-1);
-    // the run up and the run home take different lines in places, so only the leg you are on is purple
-    const edge=L.polyline(pts,{color:"#fff",weight:8,opacity:.7,interactive:false}).addTo(routeLayer);
-    const line=L.polyline(pts,{color:colours[lg.k]||"#8b2be2",weight:5,opacity:1,dashArray:lg.k==="tow"?"10 7":null}).addTo(routeLayer);
-    LEGLINES.push({edge,line,k:lg.k});
+    const line=L.polyline(chaikin(pts),{color:"#c084fc",weight:5,opacity:.8,lineJoin:"round",lineCap:"round",smoothFactor:1.5,dashArray:lg.k==="tow"?"10 8":null,interactive:false}).addTo(routeLayer);
+    LEGLINES.push({line,k:lg.k});
     for(const p of pts){ if(ROUTE.length){const last=ROUTE[ROUTE.length-1];if(last[0]===p[0]&&last[1]===p[1])continue;
         CUM.push(CUM[CUM.length-1]+hav(last,p));} else CUM.push(0); ROUTE.push(p); }
     LEGS.push({k:lg.k, a:a0, b:ROUTE.length-1});
   }
-  // place each stop on the route, in order, searching forward
   let from = 0;
   (JOB.stops||[]).forEach((s,i)=>{
     // one stop at each end of each leg, so tie them to the leg ends; search only if the counts disagree
@@ -283,16 +368,149 @@ if(JOB){
     if((JOB.stops||[]).length===LEGS.length+1) best = i===0 ? LEGS[0].a : LEGS[i-1].b;
     else for(let k=from;k<ROUTE.length;k++){const d=hav(ROUTE[k],[s.lat,s.lon]);if(d<bd){bd=d;best=k;} if(bd<30&&d>2000)break;}
     from = best; STOPS.push({...s,i:best,cum:CUM[best]||0});
-    // one name tag per place (Home and the Capri ramp come up twice)
     if(!STOPS.slice(0,-1).some(o=>hav([o.lat,o.lon],[s.lat,s.lon])<50))
     L.marker([s.lat,s.lon],{icon:L.divIcon({className:"stopicon",html:"<div>"+esc(shortName(s.n))+"</div>",iconSize:[0,0]}),zIndexOffset:500})
       .bindTooltip((i+1)+". "+s.n+(s.t?(" (plan "+s.t+")"):"")).addTo(routeLayer);
   });
 }
-// ---------- turn-by-turn directions, worked out from the planned route ----------
+function legOf(i){ for(let li=0;li<LEGS.length;li++) if(i>=LEGS[li].a && i<LEGS[li].b) return li; return LEGS.length-1; }
+
+// ---------- beacons: the next one to keep on your left and on your right ----------
+// Lateral marks from the official chart along this route (fetched with the job) and the MSQ map beacons in the Coomera.
+// Which side to keep each one comes from where it sits relative to the direction of travel on the leg, never from its colour.
+const BEAC = [];
+for(const b of (CX.bm||[]).map(m=>({s:m[0],lat:m[1],lon:m[2],src:"official chart (AHO)"})).concat(MSQB.map(m=>({s:m.s,lat:m.lat,lon:m.lon,src:"MSQ Beacon to Beacon map"}))))
+  if(!BEAC.some(o=>o.s===b.s && hav([o.lat,o.lon],[b.lat,b.lon])<15)) BEAC.push(b);
+const BK = {p:'<svg viewBox="0 0 40 40" width="34" height="34"><rect x="7" y="7" width="26" height="26" rx="3" fill="#e11d2e" stroke="rgba(255,255,255,.45)" stroke-width="3"/></svg>',
+            s:'<svg viewBox="0 0 40 40" width="34" height="34"><path d="M20 4 L36 34 H4 Z" fill="#16a34a" stroke="rgba(255,255,255,.45)" stroke-width="3" stroke-linejoin="round"/></svg>'};
+const icon24 = s => BK[s].replace(/width="34" height="34"/,'width="24" height="24"');
+for(const b of BEAC) L.marker([b.lat,b.lon],{icon:L.divIcon({className:"bk",html:BK[b.s],iconSize:[34,34]}),zIndexOffset:300})
+  .bindTooltip((b.s==="p"?"Red (port hand) beacon":"Green (starboard hand) beacon")+", "+b.src).addTo(beaconLayer);
+// each beacon within 150 m of a leg: where along the leg it comes abeam, and which side
+const BPROJ = LEGS.map(()=>[]);
+LEGS.forEach((lg,li)=>{ for(const b of BEAC){ let best=null;
+    for(let k=lg.a;k<lg.b;k++){ const pj=project([b.lat,b.lon],ROUTE[k],ROUTE[k+1]); if(pj.d<150 && (!best||pj.d<best.d)) best={...pj,k}; }
+    if(best) BPROJ[li].push({b, cum:CUM[best.k]+best.t*(CUM[best.k+1]-CUM[best.k]), side:best.side>0?"left":"right"}); }
+  BPROJ[li].sort((x,y)=>x.cum-y.cum); });
+const ringL = L.marker([0,0],{icon:L.divIcon({className:"hl",iconSize:[52,52]}),interactive:false,zIndexOffset:290});
+const ringR = L.marker([0,0],{icon:L.divIcon({className:"hl",iconSize:[52,52]}),interactive:false,zIndexOffset:290});
+function showChips(pr, bc){
+  let nl=null, nr=null;
+  if(pr && pr.off<250 && LEGS.length){ const li=legOf(pr.i);
+    for(const e of BPROJ[li]){ const d=e.cum-bc; if(d<=3) continue; if(d>NM) break;
+      if(e.side==="left" && !nl) nl={...e,d}; if(e.side==="right" && !nr) nr={...e,d}; if(nl&&nr) break; } }
+  for(const [el,e,ring,cap] of [[$("chipL"),nl,ringL,"left (port)"],[$("chipR"),nr,ringR,"right (starboard)"]]){
+    if(e){ el.innerHTML=icon24(e.b.s)+"<span>"+chipDist(e.d)+"</span><small>"+cap+"</small>"; el.classList.add("show");
+      ring.setLatLng([e.b.lat,e.b.lon]); if(map.hasLayer(beaconLayer)) ring.addTo(map); else map.removeLayer(ring); }
+    else { el.classList.remove("show"); map.removeLayer(ring); } }
+  window.CHIPS={l:nl&&{s:nl.b.s,d:Math.round(nl.d)}, r:nr&&{s:nr.b.s,d:Math.round(nr.d)}};
+}
+
+// ---------- cardinal and yellow special marks (official chart) ----------
+const CARD = {north:["#111","#f5c518","M20 2 L27 12 H13 Z M20 13 L27 23 H13 Z"], south:["#f5c518","#111","M13 2 H27 L20 12 Z M13 13 H27 L20 23 Z"],
+  east:["#111","#f5c518","M20 2 L27 12 H13 Z M13 13 H27 L20 23 Z"], west:["#f5c518","#111","M13 2 H27 L20 12 Z M20 13 L27 23 H13 Z"]};
+function omIcon(k){ if(k==="special") return '<svg viewBox="0 0 30 30" width="20" height="20"><circle cx="15" cy="15" r="11" fill="#f5c518" stroke="#fff" stroke-width="2.5"/><path d="M10 10 L20 20 M20 10 L10 20" stroke="#111" stroke-width="3"/></svg>';
+  const [top,mid,tm]=CARD[k]; return '<svg viewBox="0 0 40 52" width="28" height="36"><path d="'+tm+'" fill="#111" stroke="#fff" stroke-width="1.5"/><rect x="10" y="26" width="20" height="24" rx="3" fill="'+top+'" stroke="#fff" stroke-width="2.5"/><rect x="10" y="34" width="20" height="8" fill="'+mid+'"/></svg>'; }
+for(const [k,lat,lon] of CX.om||[]) if(k==="special"||CARD[k])
+  L.marker([lat,lon],{icon:L.divIcon({className:"om",html:omIcon(k),iconSize:k==="special"?[20,20]:[28,36]}),zIndexOffset:250})
+   .bindTooltip(k==="special"?"Yellow special mark (official chart)":(k[0].toUpperCase()+k.slice(1))+" cardinal mark: pass on its "+k+" side (official chart)").addTo(omLayer);
+
+// ---------- walls, jetties, bridges and landmarks drawn bold ----------
+for(const p of CX.wl||[]){ const pts=decodePoly(p);
+  L.polyline(pts,{color:"#000",weight:7,opacity:.35,interactive:false}).addTo(worksLayer);
+  L.polyline(pts,{color:"#f8fafc",weight:3.5,opacity:.95,interactive:false}).addTo(worksLayer); }
+for(const b of CX.br||[]) for(const p of b.p){ const pts=decodePoly(p);
+  L.polyline(pts,{color:"#000",weight:9,opacity:.35,interactive:false}).addTo(worksLayer);
+  L.polyline(pts,{color:"#e5e7eb",weight:6,opacity:.95,interactive:false}).addTo(worksLayer); }
+for(const [n,lat,lon] of CX.lm||[]){ L.circleMarker([lat,lon],{radius:6,color:"#fff",weight:2,fillColor:"#f97316",fillOpacity:1,interactive:false}).addTo(worksLayer);
+  L.marker([lat,lon],{icon:L.divIcon({className:"lmk",iconSize:[0,0],html:"<span>"+esc(n)+"</span>"}),interactive:false}).addTo(worksLayer); }
+
+// ---------- place names: chart water and land names, plus the river names and named spots kept with the quoter ----------
+const PLACES = (CX.pl||[]).map(([t,lat,lon,w])=>({t,lat,lon,w:!!w}));
+for(const w of WLABELS) if(!PLACES.some(p=>p.t.toLowerCase()===w.name.toLowerCase() && hav([p.lat,p.lon],[w.lat,w.lon])<3000)) PLACES.push({t:w.name,lat:w.lat,lon:w.lon,w:true});
+for(const m of MARKS) if(!/ramp/i.test(m.name) && !PLACES.some(p=>p.t.toLowerCase()===m.name.toLowerCase())) PLACES.push({t:m.name,lat:m.lat,lon:m.lon,w:false});
+for(const p of PLACES) L.marker([p.lat,p.lon],{icon:L.divIcon({className:"pl",iconSize:[0,0],html:'<span class="'+(p.w?"w":"g")+'">'+esc(p.t)+"</span>"}),interactive:false}).addTo(nameLayer);
+// a name hanging off the edge of the screen is slid back in, so it is never cut in half
+// and a name that would sit under a chip or card on the screen is hidden while it is there
+function nudgeLabels(){ const W=window.innerWidth; if(!map.hasLayer(nameLayer)) return;
+  const hud=[...document.querySelectorAll(".hud")].map(e=>e.getBoundingClientRect()).filter(r=>r.width>0 && r.height>0);
+  beaconLayer.eachLayer(m=>{ const e=m.getElement&&m.getElement(); if(e){ const r=e.getBoundingClientRect(); if(r.width>0) hud.push({left:r.left-6,right:r.right+6,top:r.top-6,bottom:r.bottom+6}); } });
+  nameLayer.eachLayer(m=>{ const el=m.getElement(), sp=el&&el.querySelector("span"); if(!sp) return; sp.style.marginLeft="0px";
+    let r=sp.getBoundingClientRect();
+    if(r.right>0 && r.left<W && r.width<W-16){ const dx=r.left<8 ? 8-r.left : r.right>W-8 ? W-8-r.right : 0; if(dx){ sp.style.marginLeft=dx+"px"; r=sp.getBoundingClientRect(); } }
+    sp.style.visibility = hud.some(h=>r.left<h.right && r.right>h.left && r.top<h.bottom && r.bottom>h.top) ? "hidden" : ""; }); }
+function zoomClass(){ const z=map.getZoom(), c=map.getContainer().classList; c.toggle("z13",z<13); c.toggle("z14",z>=13&&z<14);
+  if(z<14) map.removeLayer(flowLayer); else if(overOn("Tide flow arrows (estimated)")) { flowLayer.addTo(map); routeFront(); } flowTag(); }
+map.on("zoomend",zoomClass);
+map.on("moveend zoomend rotate",nudgeLabels);
+
+// ---------- tide flow arrows: faint, along the channel, in on the flood and out on the ebb ----------
+const FLOW = CX.fl ? decodePoly(CX.fl.p).map((p,i)=>[p[0],p[1],CX.fl.a[i]]) : [];
+let flowState = null;
+function dest(p,brg,m){ const r=Math.PI/180; return [p[0]+m*Math.cos(brg*r)/110540, p[1]+m*Math.sin(brg*r)/(111320*Math.cos(p[0]*r))]; }
+function drawFlow(){ const f=flooding(Date.now()); if(f===flowState) return; flowState=f; flowLayer.clearLayers();
+  if(f===null || !FLOW.length){ $("flowtag").classList.remove("show"); return; }
+  const parts=[]; for(const [lat,lon,a0] of FLOW){ const a=f?a0:(a0+180)%360, p=[lat,lon], tip=dest(p,a,12), tail=dest(p,a,-12);
+    parts.push([tail,tip],[dest(tip,a+150,6),tip,dest(tip,a-150,6)]); }
+  L.polyline(parts,{color:"rgb(235,245,255)",opacity:.28,weight:1.3,lineCap:"round",interactive:false}).addTo(flowLayer);
+  routeFront();
+  $("flowtag").textContent = "Tide flowing "+(f?"in":"out")+" (estimated)"; flowTag(); }
+function flowTag(){ $("flowtag").classList.toggle("show", map.hasLayer(flowLayer) && flowState!=null && FLOW.length>0); }
+
+// ---------- bridges: where the route passes under one, and the clearance now ----------
+// Clearance now = charted vertical clearance above HAT + (HAT - tide now), metres. A bridge with no charted clearance says so.
+const BRX = [];
+(function(){ if(!ROUTE.length) return; const raw=[];
+  for(const b of CX.br||[]) for(const p of b.p){ const pts=decodePoly(p);
+    for(let j=0;j<pts.length-1;j++){ const A=XY(pts[j]),B=XY(pts[j+1]);
+      for(let k=0;k<ROUTE.length-1;k++){ const C=XY(ROUTE[k]),D=XY(ROUTE[k+1]);
+        const den=(B[0]-A[0])*(D[1]-C[1])-(B[1]-A[1])*(D[0]-C[0]); if(Math.abs(den)<1e-9) continue;
+        const u=((C[0]-A[0])*(D[1]-C[1])-(C[1]-A[1])*(D[0]-C[0]))/den, v=((C[0]-A[0])*(B[1]-A[1])-(C[1]-A[1])*(B[0]-A[0]))/den;
+        if(u>=0&&u<=1&&v>=0&&v<=1) raw.push({cum:CUM[k]+v*(CUM[k+1]-CUM[k]), leg:legOf(k), b, at:[ROUTE[k][0]+v*(ROUTE[k+1][0]-ROUTE[k][0]),ROUTE[k][1]+v*(ROUTE[k+1][1]-ROUTE[k][1])]}); } } }
+  raw.sort((x,y)=>x.cum-y.cum);
+  for(const r of raw){ const g=BRX[BRX.length-1];
+    if(g && g.leg===r.leg && r.cum-g.cum<80) g.parts.push(r.b); else BRX.push({cum:r.cum, leg:r.leg, at:r.at, parts:[r.b]}); }
+  for(const g of BRX){
+    // the lowest charted clearance among the pieces of this crossing; HAT datum preferred, then chart datum (LAT)
+    const withC=g.parts.filter(b=>b.c!=null);
+    const hat=withC.filter(b=>/highest astronomical/i.test(b.vd||"")), lat=withC.filter(b=>/lowest astronomical|chart datum/i.test(b.vd||""));
+    if(hat.length){ g.clr=Math.min(...hat.map(b=>b.c)); g.dat="HAT"; }
+    else if(lat.length){ g.clr=Math.min(...lat.map(b=>b.c)); g.dat="LAT"; }
+    else if(withC.length){ g.clr=Math.min(...withC.map(b=>b.c)); g.dat=withC[0].vd||""; }
+    else { g.clr=null; g.dat=null; }
+    const nm=g.parts.find(b=>b.n); let name=nm?nm.n:"";
+    if(!name){ let bd=500; for(const m of MARKS) if(/bridge/i.test(m.name)){ const d=hav(g.at,[m.lat,m.lon]); if(d<bd){bd=d;name=m.name;} } }
+    g.name=name||"Bridge"; } })();
+function showBridge(pr, bc, td){
+  const el=$("bridge"); let g=null;
+  if(pr && pr.off<250 && BRX.length){ const li=legOf(pr.i); g=BRX.find(x=>x.leg===li && x.cum>bc-5 && x.cum-bc<=1000); }
+  if(!g){ el.className="br"; window.BRIDGE=null; return; }
+  const d=Math.max(0,g.cum-bc), hgt=num(BOAT.h);
+  let cls, head, sub="", word="", info={name:g.name, d:Math.round(d)};
+  if(g.clr==null){ cls="unk"; head="clearance not on the chart"; word="CHECK THE SIGN"; }
+  else if(!td){ cls="unk"; head=g.clr.toFixed(1)+" m at "+g.dat; word="NO TIDE DATA"; }
+  else if(g.dat!=="HAT" && g.dat!=="LAT"){ cls="unk"; head="charted "+g.clr.toFixed(1)+" m"; word="DATUM NOT GIVEN"; sub="check the sign"; }
+  else {
+    const now=Math.floor((g.dat==="HAT" ? g.clr+td.hat-td.h : g.clr-td.h)*10)/10; info.now=now;
+    head=now.toFixed(1)+" m clear";
+    if(hgt==null){ cls="unk"; word="SET BOAT HEIGHT"; sub="More, Boat settings"; }
+    else { const spare=Math.round((now-hgt)*10)/10, need=Math.floor(((g.dat==="HAT"?g.clr+td.hat:g.clr)-hgt-MARGIN)*10)/10; info.spare=spare;
+      if(spare>=MARGIN){ cls="ok"; word="CLEAR"; sub=spare.toFixed(1)+" m spare"; }
+      else if(spare>0){ cls="tight"; word="TIGHT"; sub="only "+spare.toFixed(1)+" m spare"; }
+      else { cls="no"; word="DON'T TRY"; sub= need>0 ? "clears when the tide is below "+need.toFixed(1)+" m" : "too high at any tide"; } } }
+  el.innerHTML='<div class="n">'+esc(g.name.toUpperCase())+" "+chipDist(d)+'</div><div class="h">'+head+"</div>"+(hgt!=null&&g.clr!=null?'<div class="y">your boat '+hgt.toFixed(1)+" m</div>":"")+'<div class="s">'+word+(sub?"<span>"+sub+"</span>":"")+"</div>";
+  el.className="br show "+cls; info.state=word; window.BRIDGE=info; }
+
+// ---------- depth: shallowest charted depth where you are on the route, plus the tide ----------
+function chartDepth(pr, bc){
+  if(!CX.dp || !pr || pr.off>50) return undefined;   // unknown away from the route
+  const li=legOf(pr.i), runs=CX.dp[li]; if(!runs) return undefined;
+  const m=bc-CUM[LEGS[li].a]; let v; for(const r of runs){ if(r[0]<=m+0.5) v=r[1]; else break; } return v; }
+
+// ---------- turn-by-turn directions (the Directions list under More) ----------
 const PTS16 = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
 function compass(b){ return PTS16[Math.round(((b%360)+360)%360/22.5)%16]; }
-function dist(m){ return m < 370 ? (Math.round(m/10)*10)+" m" : (m/1852).toFixed(1)+" nm"; }
+function dist(m){ return m < 370 ? (Math.round(m/10)*10)+" m" : (m/NM).toFixed(1)+" nm"; }
 function zoneAt(p){ for(const z of ZONES.zones||[]) if(BOAT_LEN>=(z.min_length_m||0) && inPoly(p[1],p[0],z.poly)) return z; return null; }
 function nearMark(p, skip){ let best=null,bd=600; for(const m of MARKS){ if(skip && m.name===skip) continue; const d=hav(p,[m.lat,m.lon]); if(d<bd){bd=d;best=m;} } return best?best.name:""; }
 function dpIdx(a,b,tol){ // Douglas-Peucker over ROUTE[a..b], returns kept indices
@@ -310,7 +528,6 @@ function buildDirs(){
     const from=STOPS[li]?STOPS[li].n:"start", to=STOPS[li+1]?STOPS[li+1].n:"end";
     const head=(lg.k==="tow"?"Tow: ":"Run: ")+from+" to "+to;
     let v=dpIdx(lg.a,lg.b,45);
-    // drop gentle bends so only real turns are left
     for(let pass=0;pass<3;pass++){ const out=[v[0]];
       for(let q=1;q<v.length-1;q++){ const p=out[out.length-1], b1=bearing(ROUTE[p],ROUTE[v[q]]), b2=bearing(ROUTE[v[q]],ROUTE[v[q+1]]);
         let d=((b2-b1+540)%360)-180; const short=CUM[v[q]]-CUM[p]<80;
@@ -321,9 +538,7 @@ function buildDirs(){
     for(let q=1;q<v.length-1;q++){ const b1=bearing(ROUTE[v[q-1]],ROUTE[v[q]]), b2=bearing(ROUTE[v[q]],ROUTE[v[q+1]]);
       const d=((b2-b1+540)%360)-180; const nm=nearMark(ROUTE[v[q]]);
       ev.push({i:v[q], t:turnWord(d)+", head "+compass(b2), s:nm?("near "+nm):""}); }
-    // 6 knot zone in and out along the leg
-    // zone per point, smoothed: the zone outlines are approximate, so a gap under 800 m between
-    // the same zone is filled and a stretch inside under 200 m is ignored
+    // 6 knot zone in and out along the leg, smoothed: a gap under 800 m is filled, a stretch under 200 m ignored
     const Z=[]; for(let k=lg.a;k<=lg.b;k++){ const z=zoneAt(ROUTE[k]); Z.push(z?z.name:""); }
     const runs=[]; for(let q=0;q<Z.length;q++){ if(runs.length&&runs[runs.length-1].z===Z[q]) runs[runs.length-1].e=q; else runs.push({z:Z[q],s:q,e:q}); }
     const len=r=>CUM[lg.a+r.e]-CUM[lg.a+r.s];
@@ -340,21 +555,10 @@ function buildDirs(){
     ev.forEach((e,q)=>{ const nx=ev[q+1]; e.leg=li; e.head=head; e.cum=CUM[e.i];
       e.then = nx ? CUM[nx.i]-CUM[e.i] : 0; DIRS.push(e); });
   });
-  for(const [n,e] of DIRS.entries()) if(!/^Leave|^Arrive/.test(e.t) || e.z)
-    L.marker(ROUTE[e.i],{icon:L.divIcon({className:"turnicon",iconSize:[10,10]}),interactive:true}).bindTooltip((n+1)+". "+e.t+(e.s?(", "+e.s):"")).addTo(routeLayer);
 }
 if(JOB && LEGS.length) buildDirs();
-let maxCum = -1;
-const turnMark = L.marker([0,0],{icon:L.divIcon({className:"nextturn",iconSize:[30,30]}),interactive:false,zIndexOffset:900});
-const toTurn = L.polyline([],{color:"#f97316",weight:3,dashArray:"6 6",interactive:false});
-const cogLine = L.polyline([],{color:"#fff",weight:2,opacity:.9,interactive:false});
-const aheadLine = L.polyline([],{color:"#c026d3",weight:8,opacity:.95,interactive:false});
-function nextDir(pr){
-  if(!pr) return null;
-  const c=CUM[pr.i];
-  for(let n=0;n<DIRS.length;n++) if(DIRS[n].cum > c+15) return {n, e:DIRS[n], d:DIRS[n].cum-c};
-  return null;
-}
+function nextDir(pr){ if(!pr) return null; const c=CUM[pr.i];
+  for(let n=0;n<DIRS.length;n++) if(DIRS[n].cum > c+15) return {n, e:DIRS[n], d:DIRS[n].cum-c}; return null; }
 function showDirs(){
   const pr=routeProgress(), nd=nextDir(pr);
   let h="", leg=-1;
@@ -362,23 +566,18 @@ function showDirs(){
     const cls=(nd&&n===nd.n)?" now":(nd&&n<nd.n)?" done":"";
     h+='<div class="dl'+cls+(e.z?" z":"")+'" data-n="'+n+'"><div class="n">'+(n+1)+'</div><div><b>'+esc(e.t)+'</b>'+(e.s?('<br><span class="mute">'+esc(e.s)+'</span>'):"")+(e.then>0?('<br><span class="mute">then '+dist(e.then)+'</span>'):"")+'</div></div>'; });
   $("dirBody").innerHTML = h || "<p>No job loaded, so no route to give directions for.</p>";
-  $("dirBody").querySelectorAll(".dl").forEach(el=>el.onclick=()=>{ const e=DIRS[+el.dataset.n]; follow=false;
+  $("dirBody").querySelectorAll(".dl").forEach(el=>el.onclick=()=>{ const e=DIRS[+el.dataset.n]; setFollow(false);
     $("dirSheet").classList.remove("show"); map.setView(ROUTE[e.i],16); });
-  $("dirSheet").classList.add("show");
+  $("moreSheet").classList.remove("show"); $("dirSheet").classList.add("show");
   const now=$("dirBody").querySelector(".now"); if(now) now.scrollIntoView({block:"center"});
 }
 document.querySelectorAll(".dirbtn").forEach(b=>b.onclick=showDirs);
 $("closeDir").onclick=()=>$("dirSheet").classList.remove("show");
 
 let barH="";
-function fitBars(){ const t=$("top").offsetHeight, b=$("bot").offsetHeight, k=t+"/"+b; if(k===barH) return; barH=k;
-  $("map").style.top=t+"px"; $("map").style.bottom=b+"px"; map.invalidateSize(); if(last&&follow) map.panTo([last.lat,last.lon],{animate:false}); }
-function shortName(n){ return n.replace(/Isle of Capri boat ramp/i,"Capri ramp").replace(/ River boat ramp.*$/i," ramp").replace(/ boat ramp/i," ramp").replace(/\s*\(.*\)/,""); }
-const msqLayer = L.layerGroup();
-for(const b of MSQB) L.marker([b.lat,b.lon],{icon:L.divIcon({className:"mb",html:'<div class="'+b.s+'"></div>',iconSize:[0,0]}),interactive:true,zIndexOffset:300})
-  .bindTooltip((b.s==="p"?"Red (port) beacon":"Green (starboard) beacon")+", from the MSQ Beacon to Beacon map").addTo(msqLayer);
-OVER["Coomera River beacons (MSQ maps)"]=msqLayer; if(pref.over["Coomera River beacons (MSQ maps)"]!==false) msqLayer.addTo(map);
-for(const w of WLABELS) L.marker([w.lat,w.lon],{icon:L.divIcon({className:"wlabel",html:"<div>"+esc(w.name)+"</div>",iconSize:[0,0]}),interactive:false}).addTo(map);
+function fitBars(){ const b=$("bot").offsetHeight; if(String(b)===barH) return; barH=String(b);
+  $("map").style.bottom=b+"px"; $("wind").style.bottom=(b+30)+"px"; $("flowtag").style.bottom=(b+32)+"px"; $("centre").style.bottom=(b+40)+"px";
+  map.invalidateSize(); if(last&&follow) map.panTo(followCentre(),{animate:false}); }
 // the next stop: big red pulsing target with its name, so the destination cannot be missed
 const goal = L.marker([0,0],{icon:L.divIcon({className:"goal",html:'<div class="ring"></div><div class="dot"></div><div class="lbl"></div>',iconSize:[0,0]}),interactive:false,zIndexOffset:2000});
 let goalFor=-1;
@@ -387,30 +586,43 @@ function showGoal(){ if(!STOPS.length) return; const ni=nextStopIndex(), s=STOPS
 function fitRoute(){ map.invalidateSize(); if(ROUTE.length) map.fitBounds(L.latLngBounds(ROUTE),{padding:[30,30],maxZoom:15}); }
 // close in on the boat: 17 at slow speeds, 16 when running (about 2 minutes of water ahead either way)
 function navZoom(){ return (sogS||0)>8 ? 16 : 17; }
-if(!S.started){ fitRoute(); setTimeout(()=>{ if(!last) fitRoute(); },400); }
-else if(S.track.length){ const lt=S.track[S.track.length-1]; map.setView([lt[1],lt[2]],17); }
 window.addEventListener("resize",()=>{ map.invalidateSize(); if(!last && !S.started) fitRoute(); });
 function trackPieces(){ const out=[]; let cur=[];
   for(let i=0;i<S.track.length;i++){ const p=S.track[i], q=S.track[i-1];
     if(q && (p[0]-q[0]>60000 || hav([q[1],q[2]],[p[1],p[2]])>400)){ if(cur.length) out.push(cur); cur=[]; }
     cur.push([p[1],p[2]]); }
   if(cur.length) out.push(cur); return out; }
-const trackLine = L.polyline(trackPieces(),{color:"#facc15",weight:3}).addTo(map);
+const trackLine = L.polyline(trackPieces(),{color:"#facc15",weight:3,interactive:false}).addTo(map);
 const stampLayer = L.layerGroup().addTo(map);
 function drawStamps(){stampLayer.clearLayers();for(const s of S.stamps) if(s.lat!=null)
   L.marker([s.lat,s.lon],{icon:L.divIcon({className:"stampicon",iconSize:[12,12]})}).bindTooltip(hhmm(s.t)+" "+s.l).addTo(stampLayer);}
 drawStamps();
+// keep the route over the walls and arrows, and the leg you are on over the rest
+function routeFront(){ flowLayer.eachLayer(l=>{ if(l._renderer) l.bringToBack(); }); zoneLayer.eachLayer(l=>{ if(l._renderer) l.bringToBack(); });
+  routeLayer.eachLayer(l=>{ if(l.bringToFront && l._renderer) l.bringToFront(); }); const c=LEGLINES[shownLeg]; if(c && c.line._renderer) c.line.bringToFront(); }
+routeFront(); zoomClass();
 
 // ---------- position ----------
-const meIcon = L.divIcon({className:"me",iconSize:[26,26],html:'<svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="11" fill="#2563eb" stroke="#fff" stroke-width="3"/><path d="M13 3 L18 15 L13 12 L8 15 Z" fill="#fff"/></svg>'});
+const meIcon = L.divIcon({className:"me",iconSize:[40,40],html:'<svg viewBox="0 0 44 44"><path d="M22 3 L36 40 L22 32 L8 40 Z" fill="#111" stroke="#fff" stroke-width="3" stroke-linejoin="round"/></svg>'});
 let headUp=true; try{ headUp=localStorage.getItem(STORE+".north")!=="1"; }catch(e){}
-const HUP_SIGN=-1, ARROW_SIGN=1; // leaflet-rotate: setBearing(-heading) puts the heading at the top; the arrow turns by heading plus map bearing
-function showRot(){ $("rotbtn").innerHTML = headUp ? "HDG<br>UP" : "N<br>UP"; if(!headUp) map.setBearing(0); }
-let me=null, accCircle=null, follow=true, last=null, sogS=null, cogS=null, watchId=null, wake=null, progressIdx=0;
-map.on("dragstart",()=>{follow=false;});
-$("rotbtn").onclick=()=>{ headUp=!headUp; try{ localStorage.setItem(STORE+".north",headUp?"0":"1"); }catch(e){} showRot(); };
+const HUP_SIGN=-1, ARROW_SIGN=1; // leaflet-rotate: setBearing(-heading) puts the heading at the top; screen angle = true bearing + map bearing
+function showRot(){ $("rotbtn").textContent = headUp ? "Heading up (tap for north up)" : "North up (tap for heading up)"; if(!headUp) map.setBearing(0); }
+let me=null, accCircle=null, follow=true, last=null, sogS=null, cogS=null, watchId=null, wake=null, progressIdx=0, gpsText="GPS off";
+function setFollow(f){ follow=f; $("centre").classList.toggle("show",!f && !!last); }
+map.on("dragstart",()=>setFollow(false));
+$("rotbtn").onclick=()=>{ headUp=!headUp; try{ localStorage.setItem(STORE+".north",headUp?"0":"1"); }catch(e){} showRot(); render(); };
 showRot();
-$("centre").onclick=()=>{follow=true; if(last) map.setView([last.lat,last.lon],navZoom()); else fitRoute();};
+function goFollow(){ setFollow(true); if(last) map.setView(followCentre(),navZoom()); else fitRoute(); }
+$("centre").onclick=goFollow;
+$("mCentre").onclick=()=>{ $("moreSheet").classList.remove("show"); goFollow(); };
+// heading up: keep the boat in the lower part of the screen so more water ahead shows
+function followCentre(){ if(!last) return map.getCenter();
+  if(!headUp || cogS==null || (sogS||0)<=1.5) return L.latLng(last.lat,last.lon);
+  const z=map.getZoom()||navZoom(), mpp=40075016.686*Math.cos(last.lat*Math.PI/180)/Math.pow(2,z+8);
+  return L.latLng(dest([last.lat,last.lon], cogS, map.getSize().y*0.2*mpp)); }
+
+if(!S.started){ fitRoute(); setTimeout(()=>{ if(!last) fitRoute(); },400); }
+else if(S.track.length){ const lt=S.track[S.track.length-1]; map.setView([lt[1],lt[2]],17); }
 
 function onPos(p){
   const c=p.coords, t=p.timestamp||Date.now(), pt=[c.latitude,c.longitude];
@@ -420,34 +632,53 @@ function onPos(p){
     if(sog==null && dt>0) sog=d/dt*KN; if(cog==null && d>5) cog=bearing([last.lat,last.lon],pt);}
   sogS = sog==null?sogS:(sogS==null?sog:sogS*.3+sog*.7);
   if(cog!=null && (sogS||0)>1.5) cogS=cog;
+  const first=!last;
   last={t,lat:pt[0],lon:pt[1],acc:c.accuracy};
-  if(!me){me=L.marker(pt,{icon:meIcon,zIndexOffset:1000}).addTo(map);accCircle=L.circle(pt,{radius:c.accuracy,weight:1,fillOpacity:.08}).addTo(map);
-    map.setView(pt,navZoom());}
+  if(!me){me=L.marker(pt,{icon:meIcon,zIndexOffset:1000,interactive:false}).addTo(map);accCircle=L.circle(pt,{radius:c.accuracy,weight:1,fillOpacity:.08,interactive:false}).addTo(map);}
   me.setLatLng(pt);accCircle.setLatLng(pt).setRadius(c.accuracy);
   if(headUp && cogS!=null && (sogS||0)>1.5) map.setBearing(HUP_SIGN*cogS);
-  const svg=me.getElement()&&me.getElement().querySelector("svg"); if(svg) svg.style.transform="rotate("+((cogS||0)+ARROW_SIGN*(map.getBearing?map.getBearing():0))+"deg)";
-  if(follow) map.panTo(pt,{animate:true});
+  if(first) map.setView(followCentre(),navZoom(),{animate:false});
+  else if(follow) map.panTo(followCentre(),{animate:true});
   // record: every 5 s, or 15 m, whichever first; skip poor fixes
   const lt=S.track[S.track.length-1];
   if(S.started && c.accuracy<60 && (!lt || t-lt[0]>=5000 || hav([lt[1],lt[2]],pt)>=15)){
     S.track.push([t,+pt[0].toFixed(6),+pt[1].toFixed(6),sogS==null?null:+sogS.toFixed(1),Math.round(c.accuracy)]);
     trackLine.setLatLngs(trackPieces()); if(S.track.length%6===0) save();
   }
-  $("gpsst").textContent="GPS "+Math.round(c.accuracy)+" m";
+  gpsText="GPS "+Math.round(c.accuracy)+" m";
+  if(first || Date.now()-windAt>600000) fetchWind();
   render();
 }
-function onErr(e){$("gpsst").textContent=e.code===1?"GPS blocked":"GPS waiting";
+function onErr(e){ gpsText=e.code===1?"GPS blocked":"GPS waiting"; render();
   if(e.code===1) alert("Location is blocked for this page. On iPhone: Settings, Privacy and Security, Location Services, Safari Websites, set to While Using, then reload.");}
 function startGps(){
   if(!("geolocation" in navigator)){alert("This browser has no GPS access.");return;}
-  if(watchId==null) watchId=navigator.geolocation.watchPosition(onPos,onErr,{enableHighAccuracy:true,maximumAge:0,timeout:20000});
+  if(watchId==null){ gpsText="GPS waiting"; watchId=navigator.geolocation.watchPosition(onPos,onErr,{enableHighAccuracy:true,maximumAge:0,timeout:20000}); }
   keepAwake();
 }
 async function keepAwake(){try{if("wakeLock" in navigator && (!wake||wake.released)) wake=await navigator.wakeLock.request("screen");}catch(e){}}
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){ if(S.started) startGps(); keepAwake(); save();} else save();});
 window.addEventListener("pagehide",save);
 
-// ---------- zone + next stop ----------
+// ---------- wind at the boat: Open-Meteo forecast model, refreshed every 10 minutes ----------
+let wind=null, windAt=0;
+async function fetchWind(){ if(!last) return; windAt=Date.now();
+  try{ const r=await fetch("https://api.open-meteo.com/v1/forecast?latitude="+last.lat.toFixed(3)+"&longitude="+last.lon.toFixed(3)+"&current=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=kn");
+    const j=await r.json(), c=j.current; if(!c || c.wind_speed_10m==null) throw new Error("no wind");
+    wind={from:c.wind_direction_10m, kn:c.wind_speed_10m, gust:c.wind_gusts_10m, t:Date.now()}; }
+  catch(e){ if(!wind || Date.now()-wind.t>3600000) wind=null; }
+  drawWind(); }
+function drawWind(){ const el=$("wind"); if(!wind){ el.classList.remove("show"); return; }
+  // the arrow points where the wind blows to, worked out at its final angle on the screen (no CSS rotation)
+  const to=(wind.from+180+(map.getBearing?map.getBearing():0))*Math.PI/180, ux=Math.sin(to), uy=-Math.cos(to), px=-uy, py=ux;
+  const tip=[18+13*ux,18+13*uy], tail=[18-12*ux,18-12*uy], l=[tail[0]+6*px,tail[1]+6*py], r=[tail[0]-6*px,tail[1]-6*py], n=[18-5*ux,18-5*uy];
+  const pts=[tip,l,n,r].map(q=>q[0].toFixed(1)+","+q[1].toFixed(1)).join(" ");
+  const names=["N","NE","E","SE","S","SW","W","NW"];
+  el.innerHTML='<svg viewBox="0 0 36 36" width="36" height="36"><circle cx="18" cy="18" r="17" fill="rgba(255,255,255,.12)"/><polygon points="'+pts+'" fill="#e0f2fe"/></svg>'+
+    '<div><b>'+names[Math.round(wind.from/45)%8]+" "+Math.round(wind.kn)+' kn</b> <span style="font-size:12px;opacity:.85">gust '+Math.round(wind.gust)+'</span><i>forecast model, '+hhmm(wind.t)+'</i></div>';
+  el.classList.add("show"); nudgeLabels(); }
+
+// ---------- zone, progress, next stop ----------
 function currentZone(){
   if(!last) return null;
   for(const z of ZONES.zones||[]) if(BOAT_LEN>=(z.min_length_m||0) && inPoly(last.lon,last.lat,z.poly)) return z;
@@ -483,50 +714,53 @@ function routeProgress(){
   for(let k=floorI;k<ROUTE.length;k++) if(k>=floorI && D[k]<=bd0+150){ progressIdx=k; return {i:k,off:D[k]}; }
   progressIdx=b0; return {i:b0,off:bd0};
 }
+// where the boat is along the route, in metres, between the planned points either side of the nearest one
+function boatCum(pr){ if(!pr) return 0; const here=[last.lat,last.lon], li=legOf(pr.i), lg=LEGS[li]; let best={d:1e12,c:CUM[pr.i]};
+  for(let k=Math.max(lg.a,pr.i-1);k<=Math.min(lg.b-1,pr.i);k++){ const pj=project(here,ROUTE[k],ROUTE[k+1]); if(pj.d<best.d) best={d:pj.d,c:CUM[k]+pj.t*(CUM[k+1]-CUM[k])}; }
+  return best.c; }
 function render(){
+  const pr = (JOB && last) ? routeProgress() : null, bc = pr ? boatCum(pr) : 0;
+  const td = tideAt(Date.now(), last ? last.lat : null);
+  // knots
   $("sog").textContent = sogS==null?"-":sogS.toFixed(sogS<10?1:0);
-  $("cog").textContent = cogS==null?"-":String(Math.round(cogS)).padStart(3,"0")+"°";
+  $("gpsst").textContent = !last ? gpsText.toUpperCase() : (last.acc>30 ? "KNOTS, GPS "+Math.round(last.acc)+" m" : "KNOTS");
+  // depth now
+  const cd = chartDepth(pr, bc), dEl=$("depth"), dc=$("cDp"); dc.className="";
+  if(cd==null || !td){ dEl.textContent="-"; $("depthCap").textContent = !last ? "DEPTH NOW" : cd===null ? "DEPTH, NOT CHARTED" : !td ? "DEPTH, NO TIDE" : "DEPTH, OFF ROUTE"; }
+  else { const d=cd+td.h, dr=num(BOAT.draft);
+    dEl.textContent = d<=0 ? "dries" : d.toFixed(1)+" m+"; $("depthCap").textContent="DEPTH NOW";
+    if(dr!=null) dc.className = d<dr ? "red" : d<dr+MARGIN ? "amber" : ""; else if(d<=0) dc.className="red"; }
+  // tide
+  if(td){ $("tideH").textContent=td.h.toFixed(1)+" m"; $("tideCap").textContent="TIDE, "+(td.rising?"RISING":"FALLING")+(td.place==="Paradise Point"?", PARADISE PT":"");
+    $("tideInfo").textContent="Tide at "+td.place+": "+td.h.toFixed(2)+" m above chart datum, "+(td.rising?"rising":"falling")+"; "+(td.rising?"high":"low")+" "+hhmm(td.next[0]*1000)+" "+td.next[1].toFixed(2)+" m."; }
+  else { $("tideH").textContent="-"; $("tideCap").textContent="TIDE, NO DATA"; }
+  // zone
   const z=currentZone(), ze=$("zone");
-  if(!ZONES.zones){ze.className="";ze.textContent="No zone data";}
-  else if(z){const over=(sogS||0)>z.speed_kn+0.5; ze.className=over?"over":"in";
-    ze.textContent=(over?"SLOW DOWN ":"")+z.speed_kn+" kn zone";}
-  else {ze.className="ok";ze.textContent=last?"Open water":"Zones loaded";}
-  // next turn
-  const tb=$("turn");
-  if(JOB && DIRS.length && last){
-    const pr=routeProgress(), nd=nextDir(pr);
-    if(nd){ const after=DIRS[nd.n+1]; showLeg(nd.e.leg);
-      tb.style.display="block"; tb.className=(nd.e.z?"zone":"")+(pr.off>150?" off":"");
-      $("turnD").textContent="In "+dist(nd.d);
-      const tp=ROUTE[nd.e.i]; turnMark.setLatLng(tp).addTo(map); 
-      aheadLine.setLatLngs(ROUTE.slice(pr.i, nd.e.i+1)).addTo(map);
-      $("turnT").textContent=nd.e.t;
-      $("turnS").textContent=(pr.off>150?("Off the planned line by "+dist(pr.off)+". "):"")+(nd.e.s?nd.e.s+". ":"")+(after&&after.leg===nd.e.leg?("Then: "+after.t):"");
-    } else { tb.style.display="none"; map.removeLayer(turnMark); map.removeLayer(toTurn); map.removeLayer(aheadLine); }
-  } else tb.style.display="none";
+  if(z){ const over=(sogS||0)>z.speed_kn+0.5; ze.className="show"+(over?" over":""); ze.textContent=(over?"SLOW DOWN ":"")+z.speed_kn+" kn zone"; }
+  else { ze.className=""; ze.textContent=last?"Open water":""; }
+  // the leg you are on in purple
+  if(JOB && LEGS.length){ if(pr && pr.off<1000) showLeg(legOf(pr.i)); else if(!last) showLeg(-1); }
+  showChips(pr, bc); showBridge(pr, bc, td); drawFlow();
+  if(wind) drawWind();
+  if(me){ const svg=me.getElement()&&me.getElement().querySelector("svg"); if(svg) svg.style.transform="rotate("+((cogS||0)+ARROW_SIGN*(map.getBearing?map.getBearing():0))+"deg)"; }
   // heading line: where the boat will be in 2 minutes at this speed and course
-  if(last && cogS!=null && (sogS||0)>1){ const m=(sogS/KN)*120, r=Math.PI/180, dlat=m*Math.cos(cogS*r)/110540, dlon=m*Math.sin(cogS*r)/(111320*Math.cos(last.lat*r));
-    cogLine.setLatLngs([[last.lat,last.lon],[last.lat+dlat,last.lon+dlon]]).addTo(map); } else map.removeLayer(cogLine);
-  // next stop
-  const nx=$("next");
-  if(!JOB){nx.innerHTML="No job loaded. Open the job link from the quoter to see the route and stamps.";}
-  else{
-    const st=nextStop(); const ni=nextStopIndex(), s=STOPS[ni];
-    let line="<b>Next stamp: "+esc(st?st.l:"all done")+"</b>";
-    if(s && last){
-      const pr=routeProgress(); let dist;
-      if(pr && pr.off<800 && s.cum>=CUM[pr.i]) dist=s.cum-CUM[pr.i]+pr.off; else dist=hav([last.lat,last.lon],[s.lat,s.lon]);
+  if(last && cogS!=null && (sogS||0)>1){ cogLine.setLatLngs([[last.lat,last.lon],dest([last.lat,last.lon],cogS,(sogS/KN)*120)]).addTo(map); } else map.removeLayer(cogLine);
+  // stamp button and the next stop
+  const st=nextStop(), b=$("stamp");
+  $("stampL").textContent = st ? shortName(st.l) : "extra, with a note"; b.className = st?"":"done";
+  let line="";
+  if(!JOB) line="No job loaded: open the job link from the quoter.";
+  else { const ni=nextStopIndex(), s=STOPS[ni];
+    if(s && last){ let dd;
+      if(pr && pr.off<800 && s.cum>=bc) dd=s.cum-bc+pr.off; else dd=hav([last.lat,last.lon],[s.lat,s.lon]);
       const lk=(LEGS[Math.max(0,ni-1)]||{}).k, plan=lk==="tow"?(JOB.tw||2):(JOB.cr||20);
-      const spd=(sogS&&sogS>1)?sogS:plan;
-      const eta=Date.now()+dist/(spd/KN)*1000;
-      line+="<br>"+esc(s.n)+": "+(dist/1000).toFixed(1)+" km, ETA "+hhmm(eta)+(s.t?(" (plan "+esc(s.t)+")"):"")+((sogS&&sogS>1)?"":" at "+spd+" kn");
-    }
-    nx.innerHTML=line;
-  }
-  const st=nextStop(); const b=$("stamp");
-  b.textContent = st ? "Stamp: "+st.l : "Stamp (extra)"; b.className = st?"":"done";
-  fitBars(); showGoal();
+      const spd=(sogS&&sogS>1)?sogS:plan, eta=Date.now()+dd/(spd/KN)*1000;
+      line=(dd/1000).toFixed(1)+" km, ETA "+hhmm(eta)+(s.t?(", plan "+s.t):""); } }
+  $("next").textContent=line;
+  $("gpsInfo").textContent=gpsText+(last?(", last fix "+hhmmss(last.t)):"")+".";
+  fitBars(); showGoal(); nudgeLabels();
 }
+const cogLine = L.polyline([],{color:"#fff",weight:2,opacity:.55,dashArray:"2 6",interactive:false});
 function nextStop(){ const list=(JOB&&JOB.st)||[]; const done=new Set(S.stamps.filter(s=>s.k!=null).map(s=>s.k));
   for(let k=0;k<list.length;k++) if(!done.has(k)) return {...list[k],k}; return null; }
 
@@ -542,10 +776,10 @@ function toast(msg){const d=document.createElement("div");d.textContent=msg;
   d.style.cssText="position:fixed;left:50%;top:40%;transform:translateX(-50%);z-index:3000;background:#1f9d55;color:#fff;font-weight:700;padding:14px 18px;border-radius:12px;font-size:18px";
   document.body.appendChild(d);setTimeout(()=>d.remove(),1800);}
 $("stamp").onclick=()=>{const ls=S.stamps[S.stamps.length-1]; if(ls && Date.now()-ls.t<4000) return; const st=nextStop(); if(st) stamp(st.l,st.k,st.s); else { const l=prompt("Stamp label"); if(l) stamp(l); } };
-$("undo").onclick=()=>{const s=S.stamps[S.stamps.length-1]; if(!s) return; if(confirm("Remove the stamp \""+s.l+"\" at "+hhmm(s.t)+"?")){S.stamps.pop();save();drawStamps();render();}};
+$("undo").onclick=()=>{const s=S.stamps[S.stamps.length-1]; if(!s){ alert("No stamps yet."); return; } if(confirm("Remove the stamp \""+s.l+"\" at "+hhmm(s.t)+"?")){S.stamps.pop();save();drawStamps();render();}};
 $("noteStamp").onclick=()=>{const l=prompt("What happened?"); if(l){stamp(l); showSummary();}};
-$("start").onclick=()=>{S.started=S.started||Date.now(); save(); startGps(); $("rowStart").style.display="none"; $("rowRun").style.display="flex";};
-if(S.started){ $("rowStart").style.display="none"; $("rowRun").style.display="flex"; startGps(); }
+$("start").onclick=()=>{S.started=S.started||Date.now(); save(); startGps(); $("rowStart").style.display="none"; $("rowRun").style.display="grid";};
+if(S.started){ $("rowStart").style.display="none"; $("rowRun").style.display="grid"; startGps(); }
 
 // ---------- summary ----------
 function trackStats(){
@@ -572,8 +806,8 @@ function showSummary(){
   const left=(JOB&&JOB.st||[]).filter((x,k)=>!S.stamps.some(s=>s.k===k));
   if(left.length) h+="<p class='mute'>Still to stamp: "+left.map(x=>esc(x.l)).join(", ")+"</p>";
   $("sumBody").innerHTML=h;
-  $("jobInfo").textContent = JOB ? (JOB.n+", "+JOB.d+". "+(JOB.stops||[]).length+" stops, "+(JOB.st||[]).length+" planned stamps, boat "+BOAT_LEN+" m.") : "No job loaded.";
-  $("sumSheet").classList.add("show");
+  $("jobInfo").textContent = JOB ? (JOB.n+", "+JOB.d+". "+(JOB.stops||[]).length+" stops, "+(JOB.st||[]).length+" planned stamps, boat "+BOAT_LEN+" m."+(CX.t?(" Chart details fetched "+CX.t+"."):"")) : "No job loaded.";
+  $("moreSheet").classList.remove("show"); $("sumSheet").classList.add("show");
 }
 function gpx(){
   const name=(JOB?JOB.n:"Boat track").replace(/[<&]/g,"");
@@ -588,44 +822,47 @@ async function shareFile(text,fname,type){
   if(navigator.canShare && navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:fname});return;}catch(e){if(e.name==="AbortError")return;}}
   const a=document.createElement("a");a.href=URL.createObjectURL(f);a.download=fname;document.body.appendChild(a);a.click();a.remove();
 }
-$("menu").onclick=showSummary;
+$("mTimes").onclick=showSummary;
 $("closeSum").onclick=()=>$("sumSheet").classList.remove("show");
 $("shareTxt").onclick=async()=>{const t=summaryText(); if(navigator.share){try{await navigator.share({text:t});return;}catch(e){if(e.name==="AbortError")return;}}
   try{await navigator.clipboard.writeText(t);alert("Copied. Paste it into a text message.");}catch(e){prompt("Copy this:",t);}};
 $("shareGpx").onclick=()=>{const d=new Date(S.stamps[0]?S.stamps[0].t:Date.now()); shareFile(gpx(),"track-"+d.toISOString().slice(0,10)+".gpx","application/gpx+xml");};
 $("endJob").onclick=()=>{if(confirm("Clear the track and all stamps for this job from this phone? Send the times and GPX first if you need them.")){S={job:S.job,track:[],stamps:[]};save();location.reload();}};
 
-// ---------- layers sheet ----------
+// ---------- More, layers and settings ----------
+document.querySelectorAll(".morebtn").forEach(b=>b.onclick=()=>{ render(); $("moreSheet").classList.add("show"); });
+$("closeMore").onclick=()=>$("moreSheet").classList.remove("show");
 function buildLayers(){
   let h=""; for(const k in BASES) h+='<label><input type="radio" name="base" value="'+k+'"'+(map.hasLayer(BASES[k])?" checked":"")+'> '+k+'</label>';
-  for(const k in OVER) h+='<label><input type="checkbox" data-over="'+k+'"'+(map.hasLayer(OVER[k])?" checked":"")+'> '+k+'</label>';
+  for(const k in OVER) h+='<label><input type="checkbox" data-over="'+k+'"'+(map.hasLayer(OVER[k])||(k===OV_DEPTH&&overOn(k))?" checked":"")+'> '+k+'</label>';
   $("layList").innerHTML=h;
-  $("layList").querySelectorAll("input[name=base]").forEach(r=>r.onchange=()=>{for(const k in BASES) map.removeLayer(BASES[k]); setBase(r.value);});
-  $("layList").querySelectorAll("input[data-over]").forEach(c=>c.onchange=()=>{const k=c.dataset.over; c.checked?OVER[k].addTo(map):map.removeLayer(OVER[k]); pref.over[k]=c.checked; savePref();});
+  $("layList").querySelectorAll("input[name=base]").forEach(r=>r.onchange=()=>setBase(r.value));
+  $("layList").querySelectorAll("input[data-over]").forEach(c=>c.onchange=()=>{const k=c.dataset.over; pref.over[k]=c.checked;
+    if(c.checked && !(k===OV_DEPTH && pref.base==="Official chart (AHO)")) OVER[k].addTo(map); else map.removeLayer(OVER[k]); savePref(); routeFront(); zoomClass(); render();});
 }
-function savePref(){try{localStorage.setItem(STORE+".layers3",JSON.stringify(pref));}catch(e){}}
-function setBase(k){for(const b in BASES) map.removeLayer(BASES[b]); BASES[k].addTo(map).bringToBack(); pref.base=k; savePref(); $("basebtn").textContent = k==="Satellite"?"CHART":"SAT";
-  const ov="Depths and beacons (official chart over satellite)"; if(k==="Official chart (AHO)") map.removeLayer(ahoOver); else if(pref.over[ov]) ahoOver.addTo(map);}
-$("basebtn").textContent = pref.base==="Satellite"?"CHART":"SAT";
-$("basebtn").onclick=()=>setBase(pref.base==="Satellite"?"Official chart (AHO)":"Satellite");
-$("layers").onclick=()=>{buildLayers();$("laySheet").classList.add("show");};
+function savePref(){try{localStorage.setItem(STORE+".layers4",JSON.stringify(pref));}catch(e){}}
+function setBase(k){for(const b in BASES) map.removeLayer(BASES[b]); BASES[k].addTo(map).bringToBack(); pref.base=k; savePref();
+  $("basebtn").textContent = k==="Official chart (AHO)" ? "Satellite chart" : "Plain official chart";
+  if(k==="Official chart (AHO)") map.removeLayer(ahoOver); else if(overOn(OV_DEPTH)) ahoOver.addTo(map);}
+$("basebtn").textContent = pref.base==="Official chart (AHO)" ? "Satellite chart" : "Plain official chart";
+$("basebtn").onclick=()=>{ setBase(pref.base==="Official chart (AHO)"?"Satellite":"Official chart (AHO)"); $("moreSheet").classList.remove("show"); };
+$("mLayers").onclick=()=>{buildLayers(); $("moreSheet").classList.remove("show"); $("laySheet").classList.add("show");};
 $("closeLay").onclick=()=>$("laySheet").classList.remove("show");
 $("lyZones").onchange=e=>e.target.checked?zoneLayer.addTo(map):map.removeLayer(zoneLayer);
 $("lyRoute").onchange=e=>e.target.checked?routeLayer.addTo(map):map.removeLayer(routeLayer);
 $("lyTrack").onchange=e=>e.target.checked?(trackLine.addTo(map),stampLayer.addTo(map)):(map.removeLayer(trackLine),map.removeLayer(stampLayer));
+const SETF = {sH:"h", sD:"draft", sM:"margin", sL:"len"};
+$("mSettings").onclick=()=>{ for(const id in SETF) $(id).value = BOAT[SETF[id]]!=null ? BOAT[SETF[id]] : (id==="sM"?0.5:"");
+  $("sL").placeholder = String((JOB&&JOB.L)||7.5); $("moreSheet").classList.remove("show"); $("setSheet").classList.add("show"); };
+$("closeSet").onclick=()=>$("setSheet").classList.remove("show");
+$("saveSet").onclick=()=>{ const b={}; for(const id in SETF){ const v=num($(id).value); if(v!=null) b[SETF[id]]=v; }
+  try{ localStorage.setItem(STORE+".boat",JSON.stringify(b)); }catch(e){} save(); location.reload(); };
 
-// ---------- tide (Southport, MSQ predictions above LAT, the chart datum: add it to charted depths) ----------
-function tideNow(t){ const s=t/1000;
-  for(let i=0;i<TIDES.length-1;i++){ const [t0,h0]=TIDES[i],[t1,h1]=TIDES[i+1];
-    if(t0<=s && s<=t1){ const f=(s-t0)/(t1-t0); return {h:h0+(h1-h0)*(1-Math.cos(Math.PI*f))/2, rising:h1>h0, next:TIDES[i+1], after:TIDES[i+2]}; } }
-  return null; }
-function showTide(){ const td=tideNow(Date.now()), el=$("tide"); if(!td){ el.style.display="none"; return; }
-  const nx=td.next, kind=td.rising?"high":"low";
-  el.innerHTML="Tide "+td.h.toFixed(1)+" m "+(td.rising?"rising":"falling")+" <span class='m'>"+kind+" "+hhmm(nx[0]*1000)+" "+nx[1].toFixed(1)+" m</span>"; }
-$("tide").onclick=()=>{ const now=Date.now()/1000; const rows=TIDES.filter(r=>r[0]>now-14*3600 && r[0]<now+30*3600);
-  alert("Southport tides (MSQ predictions, metres above chart datum)\n\n"+rows.map(r=>new Date(r[0]*1000).toLocaleDateString("en-AU",{weekday:"short"})+" "+hhmm(r[0]*1000)+"  "+r[1].toFixed(2)+" m").join("\n")+"\n\nDepth now = charted depth + tide height. Up the Coomera and Nerang the tide runs later than Southport."); };
-showTide(); setInterval(showTide,60000);
-setInterval(()=>{$("clock").textContent=hhmm(Date.now());},1000); $("clock").textContent=hhmm(Date.now());
+// ---------- tide table ----------
+$("cTd").onclick=()=>{ const now=Date.now()/1000, td=tideAt(Date.now(), last?last.lat:null), k=td?td.k:1, lag=td?td.lag:0;
+  const rows=TIDES.filter(r=>r[0]+lag>now-14*3600 && r[0]+lag<now+30*3600);
+  alert("Tides at "+(td?td.place:"the Seaway")+" (MSQ predictions for Southport"+(lag?", 1 hour later and 0.87 of the height":"")+", metres above chart datum)\n\n"+rows.map(r=>new Date((r[0]+lag)*1000).toLocaleDateString("en-AU",{weekday:"short"})+" "+hhmm((r[0]+lag)*1000)+"  "+(r[1]*k).toFixed(2)+" m").join("\n")+"\n\nDepth now = charted depth + tide height."); };
+setInterval(render,30000);
 render();
 </script>
 </body>
