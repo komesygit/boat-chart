@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0b2238">
+<title>Boat Chart</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{--bg:#0b2238;--ink:#fff;--mute:#9fb3c8;--ok:#1f9d55;--warn:#d97706;--bad:#dc2626;--card:rgba(11,34,56,.92);--btn:#16405f}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:16px/1.3 -apple-system,system-ui,Segoe UI,Roboto,sans-serif;-webkit-user-select:none;user-select:none}
+#map{position:fixed;inset:0}
+.bar{position:fixed;left:0;right:0;z-index:1000;padding:8px 10px}
+#top{top:0;padding-top:calc(8px + env(safe-area-inset-top));background:var(--card);display:flex;gap:10px;align-items:center}
+#bot{bottom:0;padding-bottom:calc(8px + env(safe-area-inset-bottom));background:var(--card)}
+.big{font-size:34px;font-weight:700;line-height:1}
+.unit{font-size:13px;color:var(--mute)}
+.cell{min-width:64px}
+#zone{flex:1;text-align:center;font-weight:700;border-radius:8px;padding:6px 4px;font-size:15px;background:#244}
+#zone.in{background:var(--warn)}#zone.over{background:var(--bad)}#zone.ok{background:var(--ok)}
+#gpsst{font-size:12px;color:var(--mute)}
+#next{font-size:15px;margin-bottom:6px;min-height:20px}
+#next b{font-size:17px}
+.row{display:flex;gap:8px}
+button{font:inherit;color:var(--ink);background:var(--btn);border:0;border-radius:10px;padding:12px 10px;font-weight:600}
+button:active{filter:brightness(1.3)}
+#stamp{flex:1;background:var(--ok);font-size:18px;padding:14px 8px}
+#stamp.done{background:#555}
+#start{flex:1;background:var(--ok);font-size:18px}
+.fab{position:fixed;right:10px;z-index:1000;width:46px;height:46px;border-radius:23px;padding:0;font-size:20px;background:var(--card);border:1px solid #2c5272}
+#centre{top:calc(78px + env(safe-area-inset-top))}
+#layers{top:calc(132px + env(safe-area-inset-top))}
+#warnnav{position:fixed;left:8px;z-index:999;top:calc(78px + env(safe-area-inset-top));background:rgba(220,38,38,.9);font-size:11px;font-weight:700;padding:3px 6px;border-radius:4px;pointer-events:none}
+.sheet{position:fixed;inset:0;z-index:2000;background:var(--bg);overflow:auto;padding:calc(14px + env(safe-area-inset-top)) 14px calc(20px + env(safe-area-inset-bottom));display:none;-webkit-user-select:text;user-select:text}
+.sheet.show{display:block}
+.sheet h2{margin:4px 0 10px;font-size:20px}
+.sheet table{border-collapse:collapse;width:100%;font-size:14px}
+.sheet td,.sheet th{border-bottom:1px solid #2c5272;padding:6px 4px;text-align:left;vertical-align:top}
+.sheet .row{flex-wrap:wrap;margin:12px 0}
+.sheet .row button{flex:1 1 45%}
+.sheet label{display:block;padding:10px 0;border-bottom:1px solid #2c5272}
+.mute{color:var(--mute);font-size:13px}
+textarea{width:100%;height:90px;font:13px monospace;background:#081a2b;color:var(--ink);border:1px solid #2c5272;border-radius:8px}
+.me{width:26px;height:26px}
+.me svg{width:26px;height:26px;transition:transform .3s}
+.stopicon{background:#fff;color:#0b2238;border:2px solid #0b2238;border-radius:12px;font:700 12px sans-serif;text-align:center;line-height:20px}
+.stampicon{background:var(--ok);border:2px solid #fff;border-radius:8px;width:12px;height:12px}
+.leaflet-control-attribution{font-size:9px}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="warnnav">NOT FOR NAVIGATION</div>
+<div id="top" class="bar">
+  <div class="cell"><div class="big" id="sog">-</div><div class="unit">knots</div></div>
+  <div class="cell"><div class="big" id="cog" style="font-size:24px">-</div><div class="unit">heading</div></div>
+  <div id="zone">No zone data</div>
+  <div class="cell" style="text-align:right;min-width:70px"><div id="clock" style="font-size:20px;font-weight:700">-</div><div id="gpsst">GPS off</div></div>
+</div>
+<button class="fab" id="centre" title="Follow my position">&#9678;</button>
+<button class="fab" id="layers" title="Chart layers">&#9776;</button>
+<div id="bot" class="bar">
+  <div id="next"></div>
+  <div class="row" id="rowStart"><button id="start">Start GPS and recording</button></div>
+  <div class="row" id="rowRun" style="display:none">
+    <button id="stamp">Stamp</button>
+    <button id="undo" title="Undo last stamp">Undo</button>
+    <button id="menu">Times</button>
+  </div>
+</div>
+
+<div class="sheet" id="sumSheet">
+  <h2 id="sumTitle">Times</h2>
+  <div id="sumBody"></div>
+  <div class="row">
+    <button id="shareTxt">Send times (text)</button>
+    <button id="shareGpx">Send track (GPX file)</button>
+    <button id="noteStamp">Extra stamp with a note</button>
+    <button id="closeSum">Back to chart</button>
+  </div>
+  <p class="mute">The track and stamps are kept on this phone only, and survive closing the page. Keep this page open with the screen on: if the phone locks, it stops recording until you open it again.</p>
+  <div class="row"><button id="endJob" style="background:#7f1d1d">Clear this job's track and stamps</button></div>
+  <h2 style="margin-top:22px">Job</h2>
+  <p class="mute" id="jobInfo"></p>
+  <p class="mute">To load another job, open the link made by the quoter.</p>
+</div>
+
+<div class="sheet" id="laySheet">
+  <h2>Chart layers</h2>
+  <div id="layList"></div>
+  <label><input type="checkbox" id="lyZones" checked> 6 knot zones</label>
+  <label><input type="checkbox" id="lyRoute" checked> Planned route and stops</label>
+  <label><input type="checkbox" id="lyTrack" checked> My track</label>
+  <p class="mute">Satellite: Esri World Imagery. Chart: Australian Hydrographic Office ENC Online, not for navigation. Beacons: OpenSeaMap. Zones: approximate, drawn from the MSQ schedule of speed limits, Gold Coast waterways. The boat's own chart plotter stays the primary.</p>
+  <div class="row"><button id="closeLay">Back to chart</button></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+"use strict";
+// ---------- default 6 knot zones (MSQ schedule, approximate polygons, [lon, lat]) ----------
+const DEFAULT_ZONES = {"zones":[{"id":"coomera_south_branch","name":"Coomera South Branch, Paradise Point to Sanctuary Cove","speed_kn":6,"min_length_m":6.5,"poly":[[153.377,-27.875],[153.405,-27.875],[153.405,-27.84],[153.377,-27.84]]},{"id":"coomera_foxwell_rail","name":"Coomera River, Foxwell Island to the rail bridge","speed_kn":6,"min_length_m":0,"poly":[[153.333,-27.88],[153.377,-27.88],[153.377,-27.86],[153.333,-27.86]]},{"id":"coomera_hope_foxwell","name":"Coomera River, Hope Island to Foxwell Island","speed_kn":6,"min_length_m":8.0,"poly":[[153.333,-27.86],[153.377,-27.86],[153.377,-27.84],[153.333,-27.84]]},{"id":"nerang_broadbeach_waters","name":"Nerang River near Broadbeach Waters and Bundall","speed_kn":6,"min_length_m":0,"poly":[[153.38,-28.05],[153.405,-28.05],[153.405,-28.019],[153.38,-28.019]]},{"id":"nerang_upstream_gc_hwy","name":"Nerang River upstream of the Gold Coast Highway bridge","speed_kn":6,"min_length_m":8.0,"poly":[[153.405,-28.03],[153.428,-28.03],[153.428,-27.985],[153.405,-27.985]]}]};
+const KN = 1.943844; // m/s to knots
+const STORE = "boatchart.v1";
+
+// ---------- helpers ----------
+const $ = id => document.getElementById(id);
+function hav(a, b){const R=6371000,r=Math.PI/180,dl=(b[0]-a[0])*r,dn=(b[1]-a[1])*r;
+  const h=Math.sin(dl/2)**2+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(h));}
+function bearing(a,b){const r=Math.PI/180,y=Math.sin((b[1]-a[1])*r)*Math.cos(b[0]*r),
+  x=Math.cos(a[0]*r)*Math.sin(b[0]*r)-Math.sin(a[0]*r)*Math.cos(b[0]*r)*Math.cos((b[1]-a[1])*r);return (Math.atan2(y,x)/r+360)%360;}
+function inPoly(lon,lat,poly){let c=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const [xi,yi]=poly[i],[xj,yj]=poly[j];
+  if(((yi>lat)!==(yj>lat))&&(lon<(xj-xi)*(lat-yi)/(yj-yi)+xi))c=!c;}return c;}
+function decodePoly(s){let i=0,lat=0,lon=0,out=[];while(i<s.length){for(const k of [0,1]){let b,sh=0,r=0;
+  do{b=s.charCodeAt(i++)-63;r|=(b&31)<<sh;sh+=5;}while(b>=32);const d=(r&1)?~(r>>1):(r>>1);if(k)lon+=d;else lat+=d;}
+  out.push([lat/1e5,lon/1e5]);}return out;}
+function b64urlDecode(s){s=s.replace(/-/g,"+").replace(/_/g,"/");while(s.length%4)s+="=";
+  const bin=atob(s),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new TextDecoder().decode(u);}
+function hhmm(t){const d=new Date(t);let h=d.getHours(),m=d.getMinutes();const ap=h>=12?"pm":"am";h=h%12||12;return h+":"+String(m).padStart(2,"0")+" "+ap;}
+function hhmmss(t){const d=new Date(t);return hhmm(t).replace(" ",":"+String(d.getSeconds()).padStart(2,"0")+" ");}
+function dur(ms){const m=Math.round(ms/60000);return (m>=60?Math.floor(m/60)+" h ":"")+(m%60)+" min";}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function load(){try{return JSON.parse(localStorage.getItem(STORE))||{};}catch(e){return {};}}
+function save(){try{localStorage.setItem(STORE,JSON.stringify(S));}catch(e){}}
+
+// ---------- state ----------
+let S = load(); // {job, track:[[t,lat,lon,sogKn,acc]], stamps:[{t,l,lat,lon,s}], started}
+(function readHash(){
+  const m = location.hash.match(/[#&]j=([^&]+)/);
+  if(!m) return;
+  try{
+    const job = JSON.parse(b64urlDecode(m[1]));
+    const id = job.id || (job.n+"|"+job.d);
+    if(!S.job || (S.job.id||S.job.n+"|"+S.job.d)!==id){
+      if(S.track && S.track.length && !confirm("Load the job \""+job.n+"\"? This clears the track and stamps of \""+(S.job?S.job.n:"the last job")+"\" from this phone.")) return;
+      S = {job, track:[], stamps:[]};
+    } else S.job = job;
+    save();
+  }catch(e){alert("That job link could not be read: "+e.message);}
+  history.replaceState(null,"",location.pathname);
+})();
+const JOB = S.job || null;
+S.track = S.track||[]; S.stamps = S.stamps||[];
+const ZONES = (JOB && JOB.zones) || DEFAULT_ZONES;
+const BOAT_LEN = (JOB && JOB.L) || 7.5;
+
+// ---------- map ----------
+const map = L.map("map",{zoomControl:false,attributionControl:true,preferCanvas:true}).setView([-27.95,153.40],12);
+const esri = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  {maxZoom:19,maxNativeZoom:18,attribution:"Esri World Imagery"});
+const AHO = "https://services.hydro.gov.au/site1/rest/services/MCS/AHOENCOnline/MapServer/exts/MaritimeChartService/MapServer/export";
+const AhoLayer = L.TileLayer.extend({getTileUrl(c){
+  const s=256,nw=this._map.unproject([c.x*s,c.y*s],c.z),se=this._map.unproject([(c.x+1)*s,(c.y+1)*s],c.z),
+  a=L.CRS.EPSG3857.project(nw),b=L.CRS.EPSG3857.project(se),r=L.Browser.retina?2:1;
+  return AHO+"?bbox="+[a.x,b.y,b.x,a.y].map(v=>v.toFixed(1)).join(",")+"&bboxSR=3857&imageSR=3857&size="+(s*r)+","+(s*r)+"&format=png32&transparent=true&dpi="+(96*r)+"&f=image";}});
+const aho = new AhoLayer("",{maxZoom:19,attribution:"AHO ENC Online, not for navigation"});
+const seamark = L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png",{maxZoom:19,maxNativeZoom:18,attribution:"OpenSeaMap"});
+const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"OpenStreetMap"});
+const BASES = {"Satellite":esri,"Official chart (AHO)":aho,"Street map":osm};
+const OVER = {"Beacons (OpenSeaMap)":seamark};
+let pref = {base:"Satellite",over:{"Beacons (OpenSeaMap)":true}};
+try{Object.assign(pref,JSON.parse(localStorage.getItem(STORE+".layers"))||{});}catch(e){}
+BASES[pref.base] ? BASES[pref.base].addTo(map) : esri.addTo(map);
+for(const k in OVER) if(pref.over[k]) OVER[k].addTo(map);
+L.control.scale({imperial:false,position:"bottomleft"}).addTo(map);
+
+// zones
+const zoneLayer = L.layerGroup().addTo(map);
+for(const z of ZONES.zones||[]){
+  const applies = BOAT_LEN >= (z.min_length_m||0);
+  L.polygon(z.poly.map(p=>[p[1],p[0]]),{color:applies?"#f59e0b":"#94a3b8",weight:2,fillOpacity:applies?.12:.04,dashArray:applies?null:"4 6"})
+   .bindTooltip(z.name+" - "+z.speed_kn+" kn"+(z.min_length_m?(" for boats "+z.min_length_m+" m and over"):" for all boats")).addTo(zoneLayer);
+}
+
+// route
+const routeLayer = L.layerGroup().addTo(map);
+let ROUTE = [], CUM = [], STOPS = [];
+if(JOB){
+  const colours = {run:"#38bdf8",tow:"#f472b6"};
+  for(const lg of JOB.legs||[]){
+    const pts = decodePoly(lg.p);
+    L.polyline(pts,{color:colours[lg.k]||"#38bdf8",weight:4,opacity:.85,dashArray:lg.k==="tow"?"8 6":null}).addTo(routeLayer);
+    for(const p of pts){ if(ROUTE.length){const last=ROUTE[ROUTE.length-1];if(last[0]===p[0]&&last[1]===p[1])continue;
+        CUM.push(CUM[CUM.length-1]+hav(last,p));} else CUM.push(0); ROUTE.push(p); }
+  }
+  // place each stop on the route, in order, searching forward
+  let from = 0;
+  (JOB.stops||[]).forEach((s,i)=>{
+    let best=from,bd=1e12; for(let k=from;k<ROUTE.length;k++){const d=hav(ROUTE[k],[s.lat,s.lon]);if(d<bd){bd=d;best=k;} if(bd<30&&d>2000)break;}
+    from = best; STOPS.push({...s,i:best,cum:CUM[best]||0});
+    L.marker([s.lat,s.lon],{icon:L.divIcon({className:"stopicon",html:String(i+1),iconSize:[24,24]})})
+      .bindTooltip((i+1)+". "+s.n+(s.t?(" (plan "+s.t+")"):"")).addTo(routeLayer);
+  });
+}
+function fitRoute(){ map.invalidateSize(); if(ROUTE.length) map.fitBounds(L.latLngBounds(ROUTE),{padding:[30,30],maxZoom:15}); }
+fitRoute(); setTimeout(()=>{ if(!last) fitRoute(); },400);
+window.addEventListener("resize",()=>{ map.invalidateSize(); if(!last) fitRoute(); });
+const trackLine = L.polyline(S.track.map(p=>[p[1],p[2]]),{color:"#facc15",weight:3}).addTo(map);
+const stampLayer = L.layerGroup().addTo(map);
+function drawStamps(){stampLayer.clearLayers();for(const s of S.stamps) if(s.lat!=null)
+  L.marker([s.lat,s.lon],{icon:L.divIcon({className:"stampicon",iconSize:[12,12]})}).bindTooltip(hhmm(s.t)+" "+s.l).addTo(stampLayer);}
+drawStamps();
+
+// ---------- position ----------
+const meIcon = L.divIcon({className:"me",iconSize:[26,26],html:'<svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="11" fill="#2563eb" stroke="#fff" stroke-width="3"/><path d="M13 3 L18 15 L13 12 L8 15 Z" fill="#fff"/></svg>'});
+let me=null, accCircle=null, follow=true, last=null, sogS=null, cogS=null, watchId=null, wake=null, progressIdx=0;
+map.on("dragstart",()=>{follow=false;});
+$("centre").onclick=()=>{follow=true; if(last) map.setView([last.lat,last.lon],Math.max(map.getZoom(),15)); else fitRoute();};
+
+function onPos(p){
+  const c=p.coords, t=p.timestamp||Date.now(), pt=[c.latitude,c.longitude];
+  let sog = (c.speed!=null && !isNaN(c.speed) && c.speed>=0) ? c.speed*KN : null;
+  let cog = (c.heading!=null && !isNaN(c.heading)) ? c.heading : null;
+  if(last){const dt=(t-last.t)/1000,d=hav([last.lat,last.lon],pt);
+    if(sog==null && dt>0) sog=d/dt*KN; if(cog==null && d>5) cog=bearing([last.lat,last.lon],pt);}
+  sogS = sog==null?sogS:(sogS==null?sog:sogS*.3+sog*.7);
+  if(cog!=null && (sogS||0)>1.5) cogS=cog;
+  last={t,lat:pt[0],lon:pt[1],acc:c.accuracy};
+  if(!me){me=L.marker(pt,{icon:meIcon,zIndexOffset:1000}).addTo(map);accCircle=L.circle(pt,{radius:c.accuracy,weight:1,fillOpacity:.08}).addTo(map);
+    map.setView(pt,Math.max(map.getZoom(),15));}
+  me.setLatLng(pt);accCircle.setLatLng(pt).setRadius(c.accuracy);
+  const svg=me.getElement()&&me.getElement().querySelector("svg"); if(svg) svg.style.transform="rotate("+(cogS||0)+"deg)";
+  if(follow) map.panTo(pt,{animate:true});
+  // record: every 5 s, or 15 m, whichever first; skip poor fixes
+  const lt=S.track[S.track.length-1];
+  if(S.started && c.accuracy<60 && (!lt || t-lt[0]>=5000 || hav([lt[1],lt[2]],pt)>=15)){
+    S.track.push([t,+pt[0].toFixed(6),+pt[1].toFixed(6),sogS==null?null:+sogS.toFixed(1),Math.round(c.accuracy)]);
+    trackLine.addLatLng(pt); if(S.track.length%6===0) save();
+  }
+  $("gpsst").textContent="GPS "+Math.round(c.accuracy)+" m";
+  render();
+}
+function onErr(e){$("gpsst").textContent=e.code===1?"GPS blocked":"GPS waiting";
+  if(e.code===1) alert("Location is blocked for this page. On iPhone: Settings, Privacy and Security, Location Services, Safari Websites, set to While Using, then reload.");}
+function startGps(){
+  if(!("geolocation" in navigator)){alert("This browser has no GPS access.");return;}
+  if(watchId==null) watchId=navigator.geolocation.watchPosition(onPos,onErr,{enableHighAccuracy:true,maximumAge:0,timeout:20000});
+  keepAwake();
+}
+async function keepAwake(){try{if("wakeLock" in navigator && (!wake||wake.released)) wake=await navigator.wakeLock.request("screen");}catch(e){}}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){ if(S.started) startGps(); keepAwake(); save();} else save();});
+window.addEventListener("pagehide",save);
+
+// ---------- zone + next stop ----------
+function currentZone(){
+  if(!last) return null;
+  for(const z of ZONES.zones||[]) if(BOAT_LEN>=(z.min_length_m||0) && inPoly(last.lon,last.lat,z.poly)) return z;
+  return null;
+}
+function nextStopIndex(){
+  // the stop after the last stamp tied to a stop; otherwise the first stop
+  let k=-1; for(const s of S.stamps) if(s.s!=null) k=Math.max(k,s.s);
+  return Math.min(k+1, STOPS.length-1);
+}
+function routeProgress(){
+  if(!last||!ROUTE.length) return null;
+  let best=progressIdx,bd=1e12; const lo=Math.max(0,progressIdx-200),hi=Math.min(ROUTE.length,progressIdx+600);
+  for(let k=lo;k<hi;k++){const d=hav(ROUTE[k],[last.lat,last.lon]);if(d<bd){bd=d;best=k;}}
+  if(bd>800){ for(let k=0;k<ROUTE.length;k++){const d=hav(ROUTE[k],[last.lat,last.lon]);if(d<bd){bd=d;best=k;}} }
+  progressIdx=best; return {i:best,off:bd};
+}
+function render(){
+  $("sog").textContent = sogS==null?"-":sogS.toFixed(sogS<10?1:0);
+  $("cog").textContent = cogS==null?"-":String(Math.round(cogS)).padStart(3,"0")+"°";
+  const z=currentZone(), ze=$("zone");
+  if(!ZONES.zones){ze.className="";ze.textContent="No zone data";}
+  else if(z){const over=(sogS||0)>z.speed_kn+0.5; ze.className=over?"over":"in";
+    ze.textContent=(over?"SLOW DOWN ":"")+z.speed_kn+" kn zone";}
+  else {ze.className="ok";ze.textContent=last?"Open water":"Zones loaded";}
+  // next stop
+  const nx=$("next");
+  if(!JOB){nx.innerHTML="No job loaded. Open the job link from the quoter to see the route and stamps.";}
+  else{
+    const st=nextStop(); const ni=nextStopIndex(), s=STOPS[ni];
+    let line="<b>Next stamp: "+esc(st?st.l:"all done")+"</b>";
+    if(s && last){
+      const pr=routeProgress(); let dist;
+      if(pr && pr.off<800 && s.cum>=CUM[pr.i]) dist=s.cum-CUM[pr.i]+pr.off; else dist=hav([last.lat,last.lon],[s.lat,s.lon]);
+      const spd=(sogS&&sogS>3)?sogS:((JOB.cr)||20);
+      const eta=Date.now()+dist/(spd/KN)*1000;
+      line+="<br>"+esc(s.n)+": "+(dist/1000).toFixed(1)+" km, ETA "+hhmm(eta)+(s.t?(" (plan "+esc(s.t)+")"):"")+((sogS&&sogS>3)?"":" at "+spd+" kn");
+    }
+    nx.innerHTML=line;
+  }
+  const st=nextStop(); const b=$("stamp");
+  b.textContent = st ? "Stamp: "+st.l : "Stamp (extra)"; b.className = st?"":"done";
+}
+function nextStop(){ const list=(JOB&&JOB.st)||[]; const done=new Set(S.stamps.filter(s=>s.k!=null).map(s=>s.k));
+  for(let k=0;k<list.length;k++) if(!done.has(k)) return {...list[k],k}; return null; }
+
+// ---------- stamps ----------
+function stamp(label,k,s){
+  const e={t:Date.now(),l:label,lat:last?+last.lat.toFixed(6):null,lon:last?+last.lon.toFixed(6):null,acc:last?Math.round(last.acc):null};
+  if(k!=null)e.k=k; if(s!=null)e.s=s;
+  S.stamps.push(e); save(); drawStamps(); render();
+  if(navigator.vibrate) navigator.vibrate(80);
+  toast(hhmmss(e.t)+"  "+label);
+}
+function toast(msg){const d=document.createElement("div");d.textContent=msg;
+  d.style.cssText="position:fixed;left:50%;top:40%;transform:translateX(-50%);z-index:3000;background:#1f9d55;color:#fff;font-weight:700;padding:14px 18px;border-radius:12px;font-size:18px";
+  document.body.appendChild(d);setTimeout(()=>d.remove(),1800);}
+$("stamp").onclick=()=>{const ls=S.stamps[S.stamps.length-1]; if(ls && Date.now()-ls.t<4000) return; const st=nextStop(); if(st) stamp(st.l,st.k,st.s); else { const l=prompt("Stamp label"); if(l) stamp(l); } };
+$("undo").onclick=()=>{const s=S.stamps[S.stamps.length-1]; if(!s) return; if(confirm("Remove the stamp \""+s.l+"\" at "+hhmm(s.t)+"?")){S.stamps.pop();save();drawStamps();render();}};
+$("noteStamp").onclick=()=>{const l=prompt("What happened?"); if(l){stamp(l); showSummary();}};
+$("start").onclick=()=>{S.started=S.started||Date.now(); save(); startGps(); $("rowStart").style.display="none"; $("rowRun").style.display="flex";};
+if(S.started){ $("rowStart").style.display="none"; $("rowRun").style.display="flex"; startGps(); }
+
+// ---------- summary ----------
+function trackStats(){
+  let d=0,max=0; for(let i=1;i<S.track.length;i++){const a=S.track[i-1],b=S.track[i]; const dd=hav([a[1],a[2]],[b[1],b[2]]); if(b[0]-a[0]<120000) d+=dd; if(b[3]!=null&&b[3]>max&&b[4]<30)max=b[3];}
+  let gaps=0; for(let i=1;i<S.track.length;i++) if(S.track[i][0]-S.track[i-1][0]>120000) gaps++;
+  return {km:d/1000,max,gaps,n:S.track.length};
+}
+function summaryText(){
+  const j=JOB?JOB.n:"Boat job"; const day=S.stamps[0]?new Date(S.stamps[0].t).toLocaleDateString("en-AU",{weekday:"short",day:"numeric",month:"short",year:"numeric"}):"";
+  let out=j+(day?(", "+day):"")+"\nTimes from the boat's GPS log:\n";
+  let prev=null; for(const s of S.stamps){out+=hhmm(s.t)+"  "+s.l+(prev?("  (+"+dur(s.t-prev)+")"):"")+"\n"; prev=s.t;}
+  if(S.stamps.length>1) out+="Total: "+dur(S.stamps[S.stamps.length-1].t-S.stamps[0].t)+"\n";
+  const ts=trackStats(); if(ts.n>1) out+="Distance on the water: "+ts.km.toFixed(1)+" km\n";
+  return out;
+}
+function showSummary(){
+  $("sumTitle").textContent = (JOB?JOB.n:"Times");
+  let h="<table><tr><th>Time</th><th>Stamp</th><th>Since last</th><th>Plan</th></tr>"; let prev=null;
+  for(const s of S.stamps){const plan=(s.k!=null&&JOB&&JOB.st[s.k])?JOB.st[s.k].t||"":"";
+    h+="<tr><td>"+hhmmss(s.t)+"</td><td>"+esc(s.l)+"</td><td>"+(prev?dur(s.t-prev):"")+"</td><td>"+esc(plan)+"</td></tr>"; prev=s.t;}
+  h+="</table>";
+  const ts=trackStats();
+  h+="<p>"+(S.stamps.length>1?("Total "+dur(S.stamps[S.stamps.length-1].t-S.stamps[0].t)+". "):"")+"Track "+ts.km.toFixed(1)+" km, "+ts.n+" points, top speed "+ts.max.toFixed(1)+" kn"+(ts.gaps?(", "+ts.gaps+" gap"+(ts.gaps>1?"s":"")+" over 2 min (screen was off or GPS lost)"):"")+".</p>";
+  const left=(JOB&&JOB.st||[]).filter((x,k)=>!S.stamps.some(s=>s.k===k));
+  if(left.length) h+="<p class='mute'>Still to stamp: "+left.map(x=>esc(x.l)).join(", ")+"</p>";
+  $("sumBody").innerHTML=h;
+  $("jobInfo").textContent = JOB ? (JOB.n+", "+JOB.d+". "+(JOB.stops||[]).length+" stops, "+(JOB.st||[]).length+" planned stamps, boat "+BOAT_LEN+" m.") : "No job loaded.";
+  $("sumSheet").classList.add("show");
+}
+function gpx(){
+  const name=(JOB?JOB.n:"Boat track").replace(/[<&]/g,"");
+  let g='<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Boat Chart" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>'+name+'</name></metadata>\n';
+  for(const s of S.stamps) if(s.lat!=null) g+='<wpt lat="'+s.lat+'" lon="'+s.lon+'"><time>'+new Date(s.t).toISOString()+'</time><name>'+hhmm(s.t)+' '+esc(s.l)+'</name></wpt>\n';
+  g+='<trk><name>'+name+'</name><trkseg>\n';
+  for(const p of S.track) g+='<trkpt lat="'+p[1]+'" lon="'+p[2]+'"><time>'+new Date(p[0]).toISOString()+'</time>'+(p[3]!=null?'<extensions><speed_kn>'+p[3]+'</speed_kn></extensions>':'')+'</trkpt>\n';
+  return g+'</trkseg></trk>\n</gpx>\n';
+}
+async function shareFile(text,fname,type){
+  const f=new File([text],fname,{type});
+  if(navigator.canShare && navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:fname});return;}catch(e){if(e.name==="AbortError")return;}}
+  const a=document.createElement("a");a.href=URL.createObjectURL(f);a.download=fname;document.body.appendChild(a);a.click();a.remove();
+}
+$("menu").onclick=showSummary;
+$("closeSum").onclick=()=>$("sumSheet").classList.remove("show");
+$("shareTxt").onclick=async()=>{const t=summaryText(); if(navigator.share){try{await navigator.share({text:t});return;}catch(e){if(e.name==="AbortError")return;}}
+  try{await navigator.clipboard.writeText(t);alert("Copied. Paste it into a text message.");}catch(e){prompt("Copy this:",t);}};
+$("shareGpx").onclick=()=>{const d=new Date(S.stamps[0]?S.stamps[0].t:Date.now()); shareFile(gpx(),"track-"+d.toISOString().slice(0,10)+".gpx","application/gpx+xml");};
+$("endJob").onclick=()=>{if(confirm("Clear the track and all stamps for this job from this phone? Send the times and GPX first if you need them.")){S={job:S.job,track:[],stamps:[]};save();location.reload();}};
+
+// ---------- layers sheet ----------
+function buildLayers(){
+  let h=""; for(const k in BASES) h+='<label><input type="radio" name="base" value="'+k+'"'+(map.hasLayer(BASES[k])?" checked":"")+'> '+k+'</label>';
+  for(const k in OVER) h+='<label><input type="checkbox" data-over="'+k+'"'+(map.hasLayer(OVER[k])?" checked":"")+'> '+k+'</label>';
+  $("layList").innerHTML=h;
+  $("layList").querySelectorAll("input[name=base]").forEach(r=>r.onchange=()=>{for(const k in BASES) map.removeLayer(BASES[k]); BASES[r.value].addTo(map).bringToBack(); pref.base=r.value; savePref();});
+  $("layList").querySelectorAll("input[data-over]").forEach(c=>c.onchange=()=>{const k=c.dataset.over; c.checked?OVER[k].addTo(map):map.removeLayer(OVER[k]); pref.over[k]=c.checked; savePref();});
+}
+function savePref(){try{localStorage.setItem(STORE+".layers",JSON.stringify(pref));}catch(e){}}
+$("layers").onclick=()=>{buildLayers();$("laySheet").classList.add("show");};
+$("closeLay").onclick=()=>$("laySheet").classList.remove("show");
+$("lyZones").onchange=e=>e.target.checked?zoneLayer.addTo(map):map.removeLayer(zoneLayer);
+$("lyRoute").onchange=e=>e.target.checked?routeLayer.addTo(map):map.removeLayer(routeLayer);
+$("lyTrack").onchange=e=>e.target.checked?(trackLine.addTo(map),stampLayer.addTo(map)):(map.removeLayer(trackLine),map.removeLayer(stampLayer));
+
+setInterval(()=>{$("clock").textContent=hhmm(Date.now());},1000); $("clock").textContent=hhmm(Date.now());
+render();
+</script>
+</body>
+</html>
