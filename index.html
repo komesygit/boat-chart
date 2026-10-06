@@ -154,6 +154,15 @@ function save(){try{localStorage.setItem(STORE,JSON.stringify(S));}catch(e){}}
 
 // ---------- state ----------
 let S = load(); // {job, track:[[t,lat,lon,sogKn,acc]], stamps:[{t,l,lat,lon,s}], started}
+// short link: ?job=<name> loads jobs/<name>.json from this site, then carries on as a #j= link
+(function shortLink(){
+  const q=new URLSearchParams(location.search).get("job");
+  if(!q || /[#&]j=/.test(location.hash)) return;
+  fetch("jobs/"+encodeURIComponent(q)+".json",{cache:"no-store"}).then(r=>{ if(!r.ok) throw new Error("job '"+q+"' not found"); return r.text(); })
+    .then(t=>{ const u=new TextEncoder().encode(t); let bin=""; for(const c of u) bin+=String.fromCharCode(c);
+      location.replace(location.pathname+"#j="+btoa(bin).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")); })
+    .catch(e=>alert("That job link could not be loaded: "+e.message));
+})();
 (function readHash(){
   const m = location.hash.match(/[#&]j=([^&]+)/);
   if(!m) return;
