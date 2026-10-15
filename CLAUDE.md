@@ -27,6 +27,12 @@ Copied from his global rules so cloud sessions, which read only this file, follo
 - **How to ask him:** one message per topic; every row named, dated, what it is in one line, what a
   yes loses, and your pick filled in. He answers "all" or "all except 3". Money, legal and trading
   items row by row. Research before asking. Ask each thing once per job.
+- **Before a long run:** two lines on what you understood and your plan; any real question about
+  his intent, audience or format goes in that message with 2 or 3 options and your pick, and the
+  pick applies if he does not answer. Before a visual build, show 3 to 5 options first.
+- **A better method than the one he asked for:** say it in one line and use it, unless it changes
+  what he gets. Never ask what can be found in his files, earlier sessions, this repo, connectors
+  or online.
 - **His request covers every step inside it:** do the saving, backing up and tidying of your own
   leftovers without asking again. Still ask before deleting his work, rewriting saved history,
   making something public, sending anything or spending money.
