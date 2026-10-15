@@ -18,6 +18,30 @@ authored as `komesygit`.
 The same rule is in the owner's global `CLAUDE.md`. It is repeated here because cloud sessions read
 only the repository they run in.
 
+## Owner's working rules (Thu 15 Oct 2026)
+
+Copied from his global rules so cloud sessions, which read only this file, follow them too.
+
+- **Today's date comes from a command, never from memory** (`date -u`, then add 10 hours for the
+  Gold Coast, AEST, no daylight saving). Show every time in AEST with the day named.
+- **How to ask him:** one message per topic; every row named, dated, what it is in one line, what a
+  yes loses, and your pick filled in. He answers "all" or "all except 3". Money, legal and trading
+  items row by row. Research before asking. Ask each thing once per job.
+- **His request covers every step inside it:** do the saving, backing up and tidying of your own
+  leftovers without asking again. Still ask before deleting his work, rewriting saved history,
+  making something public, sending anything or spending money.
+- **Progress:** one short line as each item finishes, what it found and what is next. No narration
+  of clicks and no repeated "still waiting" lines.
+- **End a long job with a separate closing message holding the TLDR**, written to be heard (no
+  tables, lines or symbols). Claude's listen button reads only that message. No .txt unless he asks.
+- **Emails:** never send or draft without his clear yes. His "send it" for a named email he has seen
+  is that yes, for that one email. When he asks, an email is written by the AI in its own voice, not
+  as him, and says so; invoice emails always say they were sent by AI. No AI attribution anywhere
+  else (documents, metadata, code, files, watermarks, saves).
+- **Keys:** no warnings when he pastes one. Store a key he uses more than once in this environment's
+  settings so he does not paste it again, say where in one line, and never print its value or save
+  it in a file in this repo.
+
 ## TLDR first, by default
 
 **Owner's choice, 4 Oct 2026.** Any reply longer than about 15 lines starts with a bullet-point
