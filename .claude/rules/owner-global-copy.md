@@ -148,25 +148,23 @@ Copied from his global rules so cloud sessions, which read only this file, follo
   settings so he does not paste it again, say where in one line, and never print its value or save
   it in a file in this repo.
 
-## Blocked links and pages go through his Chrome
+## Web pages go through his Chrome first
 
-**Blocked links get downloaded through his Chrome or desktop control and handed over as files (owner's
-rule, Sat 17 Oct 2026).** When a fetch, a connector or another Claude (a claude.ai chat included) cannot
-open a link, or gets a 403, a paywall or an empty page: try a plain download first, then open it in
-Claude in Chrome or with computer use, save the text or PDF to a local file, and hand that file over.
-Say which links needed it. Never stop at "blocked". His words: "chrome browser is a method that always
-works". Proved 17 Oct: AustLII refused curl (HTTP 403) but read fine in his Chrome.
-
-**A page that will not load in the built-in browser goes to his Chrome; never skip it (Sat 17 Oct
-2026).** On the desktop, when the app's built-in browser pane fails on a site (results do not render,
-screenshots time out, a store picker finds nothing), open the same page in Claude in Chrome
-(`mcp__claude-in-chrome__*`, a new tab, closed after) before moving on. Never drop a shop, search or
-stock check from a report because one browser failed. His words: "There was supposed to be a rule or
-instruction saved globally to use my chrome browser on desktop never skip searching for that reason".
-Why: on Sat 17 Oct a RAM search skipped Mwave because its results would not render in the hidden
-built-in pane; his Chrome read it first try. The rule had been saved on Wed 14 Oct only in the Night
-Fishing project's memory (`store-stock-check-in-chrome.md`) and the `shop-nearby` skill, which a
-trading session never loads.
+**Web pages: his Chrome first, on the desktop (owner's rule, Mon 19 Oct 2026; replaces the Sat 17 Oct
+"blocked links" and "built-in browser" rules).** On his desktop PC, any web page Claude must read, search,
+check or screenshot opens first in his own Chrome through Claude in Chrome (`mcp__claude-in-chrome__*`: one
+new tab, closed after). Do not try the app's built-in browser pane, a hidden or headless browser (Playwright,
+a separate Chrome profile), web fetch or curl first. A search tool may still be used to find pages; opening a
+page it finds counts as a page. One exception: a direct link to a file (a PDF, an image) may be downloaded in
+one step, and if that fails his Chrome is next, with no other route tried in between. Save what is read to a
+local file when it is needed later, say which pages were read in his Chrome, and never stop at "blocked" or
+drop a shop, search or source because one page would not load. If his Chrome page is "hidden", run
+`~/.claude/skills/tidy/scripts/restore-chrome.ps1` first. A cloud session with no link to his PC cannot reach
+his Chrome: it says so in one line and names the pages that need it. His words, Mon 19 Oct: "Validate the rule
+is available for any session to use my chrome browser and not screw around trying other ways first". Why: on
+Mon 19 Oct a session screenshotted sources in a hidden copy of Chrome and Maritime Safety Queensland answered
+with a Cloudflare check ("Performing security verification"); his Chrome opened it first try. On Sat 17 Oct
+AustLII refused curl (HTTP 403) and a RAM search skipped Mwave in the built-in pane; his Chrome read both.
 
 ## Shared files: check, tell, log
 
