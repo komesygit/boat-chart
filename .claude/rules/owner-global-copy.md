@@ -124,9 +124,19 @@ Copied from his global rules so cloud sessions, which read only this file, follo
 
 - **Today's date comes from a command, never from memory** (`date -u`, then add 10 hours for the
   Gold Coast, AEST, no daylight saving). Show every time in AEST with the day named.
-- **How to ask him:** one message per topic; every row named, dated, what it is in one line, what a
-  yes loses, and your pick filled in. He answers "all" or "all except 3". Money, legal and trading
-  items row by row. Research before asking. Ask each thing once per job.
+- One message per topic. Every row named, dated, what it is in one line, what a yes loses or
+  changes, and Claude's pick filled in. ~~I answer by exception: "all" or "all except 3"
+  (my own replies: "all y except 15. 16. 17. 18. 19.", Sun 11 Oct).~~ SUPERSEDED Sat 24 Oct 2026 by
+  the next line: his "ask me one a time" (07:54 AEST), after one message of 10 rows plus 7 picks.
+- **One question at a time, and the next question before the work (his yes, Mon 26 Oct 2026).** Put
+  one question per message, with its pick, and send the next question straight away, before doing
+  the work his last answer started, so he never waits. His words: "Always ask me the next question so
+  I don't have to wait for you to work" (Sun 25 Oct 08:27), "I don't want to wait until your done
+  working for the next question" (Mon 26 Oct). Why it is global: the note lived only in the trading
+  memory, and he had to repeat it 3 times on Mon 26 Oct, twice in an aus-video-co session that never
+  loads that memory (counted by tidy run 21 from his typed messages, `owner_msgs.py`). What would change
+  it: he asks for a batch again.
+- Money, legal and trading items row by row. Research before asking. Ask each thing once per job.
 - **Before a long run:** two lines on what you understood and your plan; any real question about
   his intent, audience or format goes in that message with 2 or 3 options and your pick, and the
   pick applies if he does not answer. Before a visual build, show 3 to 5 options first.
