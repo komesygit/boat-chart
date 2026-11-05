@@ -151,8 +151,7 @@ Copied from his global rules so cloud sessions, which read only this file, follo
 - **End a long job with a separate closing message holding the TLDR**, written to be heard (no
   tables, lines or symbols). Claude's listen button reads only that message. No .txt unless he asks.
 - **Emails:** never send or draft without his clear yes. His "send it" for a named email he has seen
-  is that yes, for that one email. When he asks, an email is written by the AI in its own voice, not
-  as him, and says so; invoice emails always say they were sent by AI. No AI attribution anywhere
+  is that yes, for that one email. Emails are written as him unless he asks for the AI's voice (his words, Sat 24 Oct 2026: "only in ai voice if i ask from now on"); when he does ask, the email is written by the AI in its own voice and says so. ~~Invoice emails always say they were sent by AI.~~ SUPERSEDED Sat 24 Oct 2026 by the line before it, because he had to say "write as me" twice in the week of 18 Oct. No AI attribution anywhere
   else (documents, metadata, code, files, watermarks, saves).
 - **Keys:** no warnings when he pastes one. Store a key he uses more than once in this environment's
   settings so he does not paste it again, say where in one line, and never print its value or save
@@ -189,6 +188,22 @@ loop's SKILL.md, the queue sheet, the GPU worker, memory notes; elsewhere any fi
 3. **Tell:** send a short note to each open session working on the same files (`ListAgents`, `SendMessage`), and report to him
    which were delivered and which were held. Messages between sessions in different permission modes are held and expire, so
    the board line is the record every session reads; a held message is never reported as delivered.
+4. **Loop decisions reach the loop (his yes, Sun 18 Oct 2026, checkup run 18).** A decision he makes about the trading loop in
+   any other session is written into the loop's SKILL.md or HANDOVER.md in the same reply, because each loop run is a new session
+   that reads only those files. Name the first run that will read it (the next LOOP number; a run already going keeps its old
+   instructions) and tell him that run in plain words. Why: 5 times from Fri 16 to Sun 18 Oct he asked why the loop had not done
+   what he had decided elsewhere, 4 about the GPU ("Why did it not run on the gpu straight away like the rule said", Sat 17 Oct).
+5. **A new rule is checked against the whole file, not just the lines it replaces (his ask, Sun 25 Oct 2026: "We need to save to
+   memory to check for conflicts like this?").** Before reporting a rule change to a shared file as done: search every file the
+   reader runs on (in trading: the loop's SKILL.md, HANDOVER.md, CLUES.md, the scripts its steps call, the verifier's checklist) for
+   wording the change contradicts, and read every other session's change to those files in the last 48 hours (git log, board).
+   Where they clash, the latest instruction wins: rewrite the clashing text, or mark his older words SUPERSEDED with the date and
+   keep them; never delete his words. Every rewritten or superseded line carries its reason beside it (his words with the date, or
+   the evidence), so the next reader neither undoes it nor follows it blindly (his "Have you also explained why", Sun 25 Oct 2026).
+   Report each clash found, by file and line, in the same reply. Why: on Sun 25 Oct 2026 the
+   costs-inside-every-test change left five clashes (the verifier still flagged "a cost used as a gate", cost faults still went
+   to the back, CLUES and HANDOVER still said "score gross" and "no costs until", and CR1 asked for hand edits that the new result
+   record forbids); none was found until he asked.
 
 ## Use the GPU where it can do the work
 
